@@ -17,7 +17,7 @@ type fft3DR2CPlan struct {
 
 // 3D single-precision real-to-complex FFT plan.
 func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
-	handle := cl.NewVkFFTPlan(ClCtx)
+	handle := cl.NewVkFFTPlan(ClCtx, ClCmdQueue)
 	handle.VkFFTSetFFTPlanSize([]int{Nx, Ny, Nz})
 
 	return fft3DR2CPlan{fftplan{handle}, [3]int{Nx, Ny, Nz}}
@@ -26,10 +26,14 @@ func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 // Execute the FFT plan, asynchronous.
 // src and dst are 3D arrays stored 1D arrays.
 func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
+
 	if Synchronous {
-		ClCmdQueue.Finish()
+		if err := ClCmdQueue.Finish(); err != nil {
+			log.Panicf("failed to wait for queue to finish in beginning of fft3dr2c.execasync: %+v \n", err)
+		}
 		timer.Start("fft")
 	}
+
 	util.Argument(src.NComp() == 1 && dst.NComp() == 1)
 	oksrclen := p.InputLen()
 	if src.Len() != oksrclen {
@@ -44,47 +48,19 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	tmpPtr = dst.DevPtr(0)
 	dstMemObj := *(*cl.MemObject)(tmpPtr)
 
-	// Synchronize in the beginning
-	var err error
-	eventList := []*cl.Event{}
-	tmpEvt := src.GetEvent(0)
-	if tmpEvt != nil {
-		eventList = append(eventList, tmpEvt)
-	}
-	tmpEvtL := dst.GetAllEvents(0)
-	if len(tmpEvtL) > 0 {
-		eventList = append(eventList, tmpEvtL...)
-	}
-	if len(eventList) != 0 {
-		if err = cl.WaitForEvents(eventList); err != nil {
-			log.Printf("WaitForEvents failed in fwPlan.ExecAsync: %+v \n", err)
-		}
+	err := p.handle.EnqueueForwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj})
+
+	if err != nil {
+		log.Printf("Failed to enqueue fwFFT: %+v \n", err)
 	}
 
-	err = p.handle.EnqueueForwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj})
 	if Synchronous {
-		ClCmdQueue.Finish()
+		if err := ClCmdQueue.Finish(); err != nil {
+			log.Panicf("failed to wait for queue to finish at end of fft3dr2c.execasync: %+v \n", err)
+		}
 		timer.Stop("fft")
 	}
-	tmpEvt, err = ClCmdQueue.EnqueueMarkerWithWaitList(nil)
-	if err != nil {
-		log.Printf("Failed to enqueue marker in fwPlan.ExecAsync: %+v \n", err)
-	}
-	dst.SetEvent(0, tmpEvt)
-	src.InsertReadEvent(0, tmpEvt)
-	if Debug {
-		if err0 := cl.WaitForEvents([]*cl.Event{tmpEvt}); err0 != nil {
-			log.Printf("WaitForEvents failed before returning fwPlan.ExecAsync: %+v \n", err0)
-		}
-		src.RemoveReadEvent(0, tmpEvt)
-	} else {
-		go func(evt *cl.Event, sl *data.Slice) {
-			if err1 := cl.WaitForEvents([]*cl.Event{evt}); err1 != nil {
-				log.Printf("WaitForEvents failed before returning fwPlan.ExecAsync: %+v \n", err1)
-			}
-			sl.RemoveReadEvent(0, evt)
-		}(tmpEvt, src)
-	}
+
 	return err
 }
 
@@ -106,4 +82,9 @@ func (p *fft3DR2CPlan) InputLen() int {
 // Required length of the (1D) output array.
 func (p *fft3DR2CPlan) OutputLen() int {
 	return prod3(p.OutputSizeFloats())
+}
+
+// Return command queue associated with the plan
+func (p *fft3DR2CPlan) GetCommandQueue() *cl.CommandQueue {
+	return p.handle.GetCommandQueue()
 }

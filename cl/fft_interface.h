@@ -32,8 +32,8 @@ struct interfaceFFTPlan {
 typedef struct interfaceFFTPlan interfaceFFTPlan;
 
 // Interface functions for plan creation
-interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx);
-interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx);
+interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue queue);
+interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx, cl_command_queue queue);
 
 // Interface function for modifying the FFT plan details
 void vkfftSetFFTPlanBufferSizes(interfaceFFTPlan* plan);
@@ -47,7 +47,7 @@ void vkfftDestroyFFTPlan(interfaceFFTPlan* plan);
 
 // Basic function to return a FFT plan.
 // This flow is similar to other FFT libraries such as FFTW, cuFFT, clFFT, rocFFT.
-interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx) {
+interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue queue) {
     interfaceFFTPlan* plan = (interfaceFFTPlan*)calloc(1, sizeof(interfaceFFTPlan));
     // Empty plan
     plan->config  = (VkFFTConfiguration*)calloc(1, sizeof(VkFFTConfiguration));
@@ -72,12 +72,8 @@ interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx) {
         return NULL;
     }
 
-    // Create a command queue for the plan
-    plan->commandQueue = clCreateCommandQueue(plan->context, plan->device, 0, &res);
-    if (res != CL_SUCCESS) {
-        free(plan);
-        return NULL;
-    }
+    // Set command queue for the plan
+    plan->commandQueue = queue;
 
     // Update internal pointers
     plan->config->platform      = &plan->platform;
@@ -121,8 +117,8 @@ interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx) {
 
 // A specialized function to return a FFT plan that computes
 // R2C (forward) and C2R (backward) transforms
-interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx) {
-    interfaceFFTPlan* plan = vkfftCreateDefaultFFTPlan(ctx);
+interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx, cl_command_queue queue) {
+    interfaceFFTPlan* plan = vkfftCreateDefaultFFTPlan(ctx, queue);
 
     plan->config->performR2C                 = 1;
     plan->config->inverseReturnToInputBuffer = 1;
@@ -300,6 +296,26 @@ void vkfftDestroyFFTPlan(interfaceFFTPlan* plan) {
     }
     free(plan->config);
     free(plan->lParams);
+}
+
+cl_event vkfftGetPlanEvent(interfaceFFTPlan* plan) {
+    return plan->app->configuration.queueEvent;
+}
+
+cl_command_queue vkfftPlanGetCommandQueue(interfaceFFTPlan* plan) {
+    return plan->commandQueue;
+}
+
+cl_device_id vkfftPlanGetDevice(interfaceFFTPlan* plan) {
+    return plan->device;
+}
+
+cl_int vkfftPlanQueueFinish(interfaceFFTPlan* plan) {
+    return clFinish(plan->commandQueue);
+}
+
+cl_int vkfftPlanQueueFlush(interfaceFFTPlan* plan) {
+    return clFlush(plan->commandQueue);
 }
 
 #endif // __FFT_INTERFACE__
