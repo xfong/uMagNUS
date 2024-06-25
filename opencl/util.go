@@ -11,6 +11,7 @@ import (
 // there might be better choices for recent hardware,
 // but it barely makes a difference in the end.
 const (
+	BLOCKSIZE = 32
 	TileX, TileY = 16, 16
 	MaxGridSize  = 65535
 )
@@ -26,7 +27,8 @@ var config1DSize int
 func make1DConf(N int) *config {
 
 	gr := make([]int, 3)
-	gr[0], gr[1], gr[2] = config1DSize, 1, 1
+	threadCount := divUp(N, BLOCKSIZE) * BLOCKSIZE
+	gr[0], gr[1], gr[2] = threadCount, 1, 1
 
 	return &config{Grid: gr, Block: nil}
 }
