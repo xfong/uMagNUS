@@ -78,7 +78,7 @@ func Recycle(s *data.Slice) {
 	// otherwise, the buffer might be corrupted during kernel
 	// execution
 	var err error
-	err := ClCmdQueue.Finish()
+	err = ClCmdQueue.Finish()
 	if err != nil {
 		log.Printf("failed to wait for queue to finish in recycle: %+v \n", err)
 	}
@@ -102,7 +102,7 @@ func Recycle(s *data.Slice) {
 
 // Frees all buffers. Called after mesh resize.
 func FreeBuffers() {
-	if err := Cl.CmdQueue.Finish(); err != nil {
+	if err := ClCmdQueue.Finish(); err != nil {
 		log.Printf("failed to wait for queue to finish in freebuffers: %+v \n", err)
 	}
 	for _, size := range buf_pool {

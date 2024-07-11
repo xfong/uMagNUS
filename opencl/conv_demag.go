@@ -65,8 +65,7 @@ func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
 	kernMulRSymm3D_async(c.fftCBuf,
 		c.kern[X][X], c.kern[Y][Y], c.kern[Z][Z],
 		c.kern[Y][Z], c.kern[X][Z], c.kern[X][Y],
-		c.fftKernLogicSize[X], c.fftKernLogicSize[Y], c.fftKernLogicSize[Z],
-		ClCmdQueue, nil)
+		c.fftKernLogicSize[X], c.fftKernLogicSize[Y], c.fftKernLogicSize[Z])
 
 	for i := 0; i < 3; i++ { // BW FFT
 		c.bwFFT(i, outp)
@@ -88,7 +87,7 @@ func (c *DemagConvolution) exec2D(outp, inp, vol *data.Slice, Msat MSlice) {
 	// Z
 	c.fwFFT(Z, inp, vol, Msat)
 
-	kernMulRSymm2Dz_async(c.fftCBuf[Z], c.kern[Z][Z], Nx, Ny, ClCmdQueue, nil)
+	kernMulRSymm2Dz_async(c.fftCBuf[Z], c.kern[Z][Z], Nx, Ny)
 
 	c.bwFFT(Z, outp)
 
@@ -97,7 +96,7 @@ func (c *DemagConvolution) exec2D(outp, inp, vol *data.Slice, Msat MSlice) {
 	c.fwFFT(Y, inp, vol, Msat)
 
 	kernMulRSymm2Dxy_async(c.fftCBuf[X], c.fftCBuf[Y],
-		c.kern[X][X], c.kern[Y][Y], c.kern[X][Y], Nx, Ny, ClCmdQueue, nil)
+		c.kern[X][X], c.kern[Y][Y], c.kern[X][Y], Nx, Ny)
 
 	c.bwFFT(X, outp)
 	c.bwFFT(Y, outp)
@@ -119,7 +118,7 @@ func zero1_async(dst *data.Slice) {
 		}
 	}
 
-	event, err := queue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, nil)
+	event, err := ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, nil)
 	if err != nil {
 		fmt.Printf("EnqueueFillBuffer failed: %+v \n", err)
 	}
@@ -132,7 +131,7 @@ func zero1_async(dst *data.Slice) {
 
 // forward FFT component i
 func (c *DemagConvolution) fwFFT(i int, inp, vol *data.Slice, Msat MSlice) {
-	zero1_async(c.fftRBuf[i], queue, events)
+	zero1_async(c.fftRBuf[i])
 	in := inp.Comp(i)
 	copyPadMul(c.fftRBuf[i], in, vol, c.realKernSize, c.inputSize, Msat)
 	if err := c.fwPlan.ExecAsync(c.fftRBuf[i], c.fftCBuf[i]); err != nil {
@@ -199,7 +198,7 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 			if realKern[i][j] != nil { // ignore 0's
 				// FW FFT
 				data.Copy(input, realKern[i][j])
-				err := c.fwPlan.ExecAsync(input, output, queue, nil) // FW FFT
+				err := c.fwPlan.ExecAsync(input, output) // FW FFT
 				if err != nil {
 					fmt.Printf("error enqueuing forward fft in init: %+v \n ", err)
 				}

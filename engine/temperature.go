@@ -49,7 +49,7 @@ func (b *thermField) UpdateSeed(seedVal *uint64) {
 	} else {
 		b.seed = *seedVal
 	}
-	b.generator.Init(&b.seed, nil)
+	b.generator.Init(&b.seed)
 }
 
 func (b *thermField) AddTo(dst *data.Slice) {
@@ -118,7 +118,7 @@ func (b *thermField) update() {
 	alpha := Alpha.MSlice()
 	defer alpha.Recycle()
 	for i := 0; i < 3; i++ {
-		b.generator.Normal(noise.DevPtr(0), int(N), nil)
+		b.generator.Normal(noise.DevPtr(0), int(N))
 		opencl.SetTemperature(dst.Comp(i), noise, k2_VgammaDt, ms, temp, alpha)
 	}
 

@@ -26,7 +26,7 @@ func NewBytes(Len int) *Bytes {
 	zeroPattern := uint8(0)
 
 	if Synchronous {
-		if err := Cl.CmdQueue.Finish(); err != nil {
+		if err := ClCmdQueue.Finish(); err != nil {
 			log.Printf("failed to wait for queue to finish in newbytes: %+v \n", err)
 		}
 	}

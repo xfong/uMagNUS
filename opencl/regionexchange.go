@@ -5,7 +5,6 @@ package opencl
 import (
 	"math"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 

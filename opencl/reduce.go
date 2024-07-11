@@ -69,7 +69,7 @@ func Dot(a, b *data.Slice) float32 {
 // Maximum of absolute values of all elements.
 func MaxAbs(in *data.Slice) float32 {
 	util.Argument(in.NComp() == 1)
-	out := reduceBuf(0, ClCmdQueue, events)
+	out := reduceBuf(0)
 
 	k_reducemaxabs_async(in.DevPtr(0), out, 0,
 		in.Len(), reducecfg, ClCmdQueue, nil)
@@ -106,12 +106,12 @@ func MaxDiff(a, b *data.Slice) []float32 {
 //	max_i sqrt( x[i]*x[i] + y[i]*y[i] + z[i]*z[i] )
 func MaxVecNorm(v *data.Slice) float64 {
 	util.Argument(v.NComp() == 3)
-	out := reduceBuf(0, ClCmdQueue[1], events)
+	out := reduceBuf(0)
 
 	k_reducemaxvecnorm2_async(v.DevPtr(0), v.DevPtr(1), v.DevPtr(2),
 		out, 0, v.Len(), reducecfg, ClCmdQueue, nil)
 
-	results := copyback(out, ClCmdQueue, nil)
+	results := copyback(out)
 	return math.Sqrt(float64(results))
 }
 
@@ -129,7 +129,7 @@ func MaxVecDiff(x, y *data.Slice) float64 {
 		y.DevPtr(0), y.DevPtr(1), y.DevPtr(2),
 		out, 0, x.Len(), reducecfg, ClCmdQueue, nil)
 
-	results := copyback(out, ClCmdQueue[1], nil)
+	results := copyback(out)
 	return math.Sqrt(float64(results))
 }
 
@@ -142,7 +142,7 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 		initReduceBuf()
 	}
 	buf := <-reduceBuffers
-	_, err := ClCmdQueue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, ReduceWorkgroups*SIZEOF_FLOAT32, events)
+	_, err := ClCmdQueue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, ReduceWorkgroups*SIZEOF_FLOAT32, nil)
 	if err != nil {
 		fmt.Printf("reduceBuf failed: %+v \n", err)
 		return nil

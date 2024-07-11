@@ -5,7 +5,6 @@ package opencl
 import (
 	"fmt"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	mag "github.com/seeder-research/uMagNUS/mag"
 )
@@ -71,7 +70,7 @@ func (c *MFMConvolution) initFFTKern3D() {
 		if err != nil {
 			fmt.Printf("error enqueuing forward fft in initfftkern3d: %+v \n", err)
 		}
-		scale := 2 / float32(c.fwPlan[i].InputLen()) // ??
+		scale := 2 / float32(c.fwPlan.InputLen()) // ??
 		zero1_async(c.gpuFFTKern[i])
 		Madd2(c.gpuFFTKern[i], c.gpuFFTKern[i], c.fftCBuf, 0, scale)
 	}
@@ -90,7 +89,7 @@ func (c *MFMConvolution) Exec(outp, inp, vol *data.Slice, Msat MSlice) {
 		Nx, Ny := c.fftKernSize[X]/2, c.fftKernSize[Y] //   ??
 		kernMulC_async(c.fftCBuf, c.gpuFFTKern[i], Nx, Ny)
 
-		if err = c.bwPlan[i].ExecAsync(c.fftCBuf, c.fftRBuf); err != nil {
+		if err = c.bwPlan.ExecAsync(c.fftCBuf, c.fftRBuf); err != nil {
 			fmt.Printf("error enqueuing backward fft in mfmconv exec: %+v \n", err)
 		}
 		copyUnPad(outp.Comp(i), c.fftRBuf, c.size, c.kernSize)
