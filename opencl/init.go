@@ -272,9 +272,8 @@ func Init(gpu int) {
 			reducecfg.Block[0] = ReduceWorkitems
 		}
 	}
-	if ReduceWorkgroups > 0 {
-		reducecfg.Grid[0] = ReduceWorkgroups * reducecfg.Block[0]
-	}
+
+	reducecfg.Grid[0] = 4 * ClMaxWGNum * reducecfg.Block[0]
 
 	if Debug {
 		fmt.Printf("    PlatformInfo: \n%+v \n", PlatformInfo)

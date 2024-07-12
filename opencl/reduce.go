@@ -95,8 +95,7 @@ func MaxDiff(a, b *data.Slice) []float32 {
 	}
 
 	for c := 0; c < numComp; c++ {
-		results := copyback(out[c])
-		returnVal[c] = float32(results)
+		returnVal[c] = float32(copyback(out[c]))
 	}
 	return returnVal
 }
@@ -142,7 +141,7 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 		initReduceBuf()
 	}
 	buf := <-reduceBuffers
-	_, err := ClCmdQueue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, ReduceWorkgroups*SIZEOF_FLOAT32, nil)
+	_, err := ClCmdQueue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil)
 	if err != nil {
 		fmt.Printf("reduceBuf failed: %+v \n", err)
 		return nil
@@ -158,20 +157,12 @@ func copyback(buf unsafe.Pointer) float32 {
 	return result
 }
 
-// copy back float slice result from GPU and recycle buffer
-func copybackSlice(buf unsafe.Pointer) []float32 {
-	result := make([]float32, ReduceWorkgroups)
-	MemCpyDtoH(unsafe.Pointer(&result[0]), buf, ReduceWorkgroups*SIZEOF_FLOAT32)
-	reduceBuffers <- (*cl.MemObject)(buf)
-	return result
-}
-
 // initialize pool of 1-float and N-float OPENCL reduction buffers
 func initReduceBuf() {
 	const N = 128
 	reduceBuffers = make(chan *cl.MemObject, N)
 	for i := 0; i < N; i++ {
-		reduceBuffers <- MemAlloc(ReduceWorkgroups * SIZEOF_FLOAT32)
+		reduceBuffers <- MemAlloc(SIZEOF_FLOAT32)
 	}
 }
 
@@ -180,4 +171,3 @@ func initReduceBuf() {
 // could be improved but takes hardly ~1% of execution time
 var reducecfg = &config{Grid: []int{1, 1, 1}, Block: []int{1, 1, 1}}
 var ReduceWorkitems int
-var ReduceWorkgroups int

@@ -30,7 +30,6 @@ var (
 	Flag_version     = flag.Bool("v", true, "Print version")
 	Flag_vet         = flag.Bool("vet", false, "Check input files for errors, but don't run them")
 	Flag_wi          = flag.Int("wi", 128, "Number of workitems per workgroup to launch for reduction kernels")
-	Flag_wg          = flag.Int("wg", 1, "Number of workgroups to launch for reduction kernels")
 	Flag_gpu         = int(-5) // To be set externally
 )
 
@@ -48,7 +47,6 @@ func InitAndClose() func() {
 	flag.Parse()
 
 	opencl.ReduceWorkitems = *Flag_wi
-	opencl.ReduceWorkgroups = *Flag_wg
 
 	if *Flag_host {
 		if Flag_gpu < 0 {
