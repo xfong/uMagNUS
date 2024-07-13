@@ -9,7 +9,7 @@ reducesum(         __global real_t*    __restrict     src,
     ulong const idx_in_block = get_local_id(0);
     ulong idx_global = get_group_id(0) * (get_local_size(0) * 2) + get_local_id(0);
     ulong const grid_size = block_size * 2 * get_num_groups(0);
-    scratch[idx_in_block] = (idx_global < n) ? src[idx_global] : 0;
+    scratch[idx_in_block] = (idx_global == 0) ? initVal : 0;
 
     // We reduce multiple elements per thread.
     // The number is determined by the number of active thread blocks (via gridDim).
@@ -25,19 +25,27 @@ reducesum(         __global real_t*    __restrict     src,
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Perform reduction in the shared memory.
-    if (block_size >= 512) {
-        if (idx_in_block < 256)
-            scratch[idx_in_block] += scratch[idx_in_block + 256];
+    if (grp_sz > 512) {
+        if (local_idx < 512)
+            scratch[local_idx] += scratch[local_idx + 512];
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-    if (block_size >= 256) {
-        if (idx_in_block < 128)
-            scratch[idx_in_block] += scratch[idx_in_block + 128];
+
+    if (grp_sz > 256) {
+        if (local_idx < 256)
+            scratch[local_idx] += scratch[local_idx + 256];
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-    if (block_size >= 128) {
-        if (idx_in_block < 64)
-            scratch[idx_in_block] += scratch[idx_in_block + 64];
+
+    if (grp_sz > 128) {
+        if (local_idx < 128)
+            scratch[local_idx] += scratch[local_idx + 128];
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (grp_sz > 64) {
+        if (local_idx < 64)
+            scratch[local_idx] += scratch[local_idx + 64];
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
