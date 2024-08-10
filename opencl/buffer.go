@@ -74,15 +74,6 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 
 // Returns a buffer obtained from GetBuffer to the pool.
 func Recycle(s *data.Slice) {
-	// ensure all commands in the command queue are completed
-	// otherwise, the buffer might be corrupted during kernel
-	// execution
-	var err error
-	err = ClCmdQueue.Finish()
-	if err != nil {
-		log.Printf("failed to wait for queue to finish in recycle: %+v \n", err)
-	}
-
 	N := s.Len()
 	pool := buf_pool[N]
 	// put each component buffer back on the stack

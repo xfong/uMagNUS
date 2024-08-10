@@ -9,19 +9,20 @@ reducesum(         __global real_t*    __restrict     src,
     ulong const idx_in_block = get_local_id(0);
     ulong idx_global = get_group_id(0) * (get_local_size(0) * 2) + get_local_id(0);
     ulong const grid_size = block_size * 2 * get_num_groups(0);
-    scratch[idx_in_block] = (idx_global == 0) ? initVal : 0;
+    real_t mine = (idx_global == 0) ? initVal : 0;
 
     // We reduce multiple elements per thread.
     // The number is determined by the number of active thread blocks (via gridDim).
     // More blocks will result in a larger grid_size and therefore fewer elements per thread.
     while (idx_global < n) {
-        scratch[idx_in_block] += src[idx_global];
+        mine += src[idx_global];
         // Ensure we don't read out of bounds -- this is optimized away for powerOf2 sized arrays.
         if (idx_global + block_size < n)
-            scratch[idx_in_block] += src[idx_global + block_size];
+            mine += src[idx_global + block_size];
         idx_global += grid_size;
     }
 
+    scratch[idx_in_block] = mine;
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Perform reduction in the shared memory.

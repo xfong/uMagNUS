@@ -10,7 +10,7 @@ reducedot(         __global real_t* __restrict     src1,
     ulong const idx_in_block = get_local_id(0);
     ulong idx_global = get_group_id(0) * (get_local_size(0) * 2) + get_local_id(0);
     ulong const grid_size = block_size * 2 * get_num_groups(0);
-    scratch[idx_in_block] = (idx_global == 0) ? initVal : 0;
+    real_t mine = (idx_global == 0) ? initVal : 0;
 
     // We reduce multiple elements per thread.
     // The number is determined by the number of active thread blocks (via gridDim).
@@ -18,16 +18,17 @@ reducedot(         __global real_t* __restrict     src1,
     while (idx_global < n) {
         real_t a1 = src1[idx_global];
         real_t b1 = src2[idx_global];
-        scratch[idx_in_block] += a1*b1;
+        mine += a1*b1;
         // Ensure we don't read out of bounds -- this is optimized away for powerOf2 sized arrays.
         if (idx_global + block_size < n) {
             a1 = src1[idx_global + block_size];
             b1 = src2[idx_global + block_size];
-            scratch[idx_in_block] += a1*b1;
+            mine += a1*b1;
         }
         idx_global += grid_size;
     }
 
+    scratch[idx_in_block] = mine;
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Perform reduction in the shared memory.
