@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	"log"
 	"unsafe"
 
 	data "github.com/seeder-research/uMagNUS/data"
@@ -19,10 +20,23 @@ func AddDMIBulk(Beff *data.Slice, m *data.Slice, Aex_red, D_red SymmLUT, Msat MS
 		openBC = 1
 	}
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in adddmibulk: %+v \n", err)
+		}
+	}
+
 	k_adddmibulk_async(Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		unsafe.Pointer(Aex_red), unsafe.Pointer(D_red), regions.Ptr,
 		float32(cellsize[X]), float32(cellsize[Y]), float32(cellsize[Z]),
 		N[X], N[Y], N[Z], mesh.PBC_code(), openBC, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in adddmibulk end: %+v \n", err)
+		}
+	}
 }

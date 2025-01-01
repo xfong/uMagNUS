@@ -26,7 +26,7 @@ func NewBytes(Len int) *Bytes {
 	zeroPattern := uint8(0)
 
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err = ClCmdQueue.Finish(); err != nil {
 			log.Printf("failed to wait for queue to finish in newbytes: %+v \n", err)
 		}
 	}
@@ -36,6 +36,7 @@ func NewBytes(Len int) *Bytes {
 	if err != nil {
 		panic(err)
 	}
+
 	if Synchronous {
 		if err = cl.WaitForEvents([](*cl.Event){event}); err != nil {
 			log.Panic("WaitForEvents failed in NewBytes:", err)
@@ -108,6 +109,7 @@ func (src *Bytes) Get(index int) byte {
 	if err != nil {
 		panic(err)
 	}
+
 	// Must synchronize
 	if err = cl.WaitForEvents([](*cl.Event){event}); err != nil {
 		log.Panic("WaitForEvents failed in Bytes.Get():", err)

@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	"log"
 	"unsafe"
 
 	data "github.com/seeder-research/uMagNUS/data"
@@ -11,6 +12,13 @@ func AddOommfSlonczewskiTorque(torque, m *data.Slice, Msat, J, fixedP, alpha, pf
 	N := torque.Len()
 	cfg := make1DConf(N)
 	flt := float32(mesh.WorldSize()[Z])
+
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addoommfslonczewskitorque: %+v \n", err)
+		}
+	}
 
 	k_addoommfslonczewskitorque_async(
 		torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
@@ -28,4 +36,10 @@ func AddOommfSlonczewskiTorque(torque, m *data.Slice, Msat, J, fixedP, alpha, pf
 		ε_prime.DevPtr(0), ε_prime.Mul(0),
 		unsafe.Pointer(uintptr(0)), flt,
 		N, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addoommfslonczewskitorque end: %+v \n", err)
+		}
+	}
 }

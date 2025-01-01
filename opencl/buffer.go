@@ -23,20 +23,10 @@ const buf_max = 127 // maximum number of buffers to allocate (detect memory leak
 
 // Returns a GPU slice for temporary use. To be returned to the pool with Recycle
 func Buffer(nComp int, size [3]int) *data.Slice {
-	// var err error
-	// if Synchronous {
-	// 	err = ClCmdQueue.Finish()
-	// 	if err != nil {
-	// 		log.Printf("failed to wait for queue to finish inbeginning of buffer: %+v \n", err)
-	// 	}
-	// }
-
 	ptrs := make([]unsafe.Pointer, nComp)
 
 	// re-use as many buffers as possible form our stack
 	N := prod(size)
-	//bytes := N * SIZEOF_FLOAT32
-	//initVal := float32(0.0)
 	pool := buf_pool[N]
 	nFromPool := iMin(nComp, len(pool))
 	for i := 0; i < nFromPool; i++ {
@@ -49,23 +39,14 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		if len(buf_check) >= buf_max {
 			log.Panic("too many buffers in use, possible memory leak")
 		}
+
 		tmpPtr, err := ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
 		if err != nil {
 			panic(err)
 		}
-		ptrs[i] = unsafe.Pointer(tmpPtr)
-		// event, err := ClCmdQueue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, nil)
-		// if err != nil {
-		// 	log.Printf("CreateEmptyBuffer failed: %+v \n", err)
-		// }
-		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 
-		// Synchronize
-		// if Synchronous {
-		// 	if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
-		// 		log.Printf("Wait for EnqueueFillBuffer failed: %+v \n", err)
-		// 	}
-		// }
+		ptrs[i] = unsafe.Pointer(tmpPtr)
+		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 	}
 
 	outBuffer := data.SliceFromPtrs(size, data.GPUMemory, ptrs)
@@ -76,6 +57,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 func Recycle(s *data.Slice) {
 	N := s.Len()
 	pool := buf_pool[N]
+
 	// put each component buffer back on the stack
 	for i := 0; i < s.NComp(); i++ {
 		ptr := s.DevPtr(i)
@@ -87,6 +69,7 @@ func Recycle(s *data.Slice) {
 		}
 		pool = append(pool, ptr)
 	}
+
 	s.Disable() // make it unusable, protect against accidental use after recycle
 	buf_pool[N] = pool
 }
@@ -96,6 +79,7 @@ func FreeBuffers() {
 	if err := ClCmdQueue.Flush(); err != nil {
 		log.Printf("failed to wait for queue to flush in freebuffers: %+v \n", err)
 	}
+
 	for _, size := range buf_pool {
 		for i := range size {
 			tmpObj := (*cl.MemObject)(size[i])

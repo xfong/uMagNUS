@@ -1,6 +1,8 @@
 package opencl
 
 import (
+	"log"
+
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -13,9 +15,22 @@ func copyUnPad(dst, src *data.Slice, dstsize, srcsize [3]int) {
 
 	cfg := make3DConf(dstsize)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in copyunpad: %+v \n", err)
+		}
+	}
+
 	k_copyunpad_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
 		src.DevPtr(0), srcsize[X], srcsize[Y], srcsize[Z], cfg,
 		ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in copyunpad end: %+v \n", err)
+		}
+	}
 }
 
 // Copies src into dst, which is larger, and multiplies by vol*Bsat.
@@ -27,8 +42,21 @@ func copyPadMul(dst, src, vol *data.Slice, dstsize, srcsize [3]int, Msat MSlice)
 
 	cfg := make3DConf(srcsize)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in copypadmul: %+v \n", err)
+		}
+	}
+
 	k_copypadmul2_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
 		src.DevPtr(0), srcsize[X], srcsize[Y], srcsize[Z],
 		Msat.DevPtr(0), Msat.Mul(0), vol.DevPtr(0), cfg,
 		ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in copypadmul end: %+v \n", err)
+		}
+	}
 }

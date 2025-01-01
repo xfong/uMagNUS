@@ -3,6 +3,7 @@ package opencl
 // Region paired spin torque calculations
 
 import (
+	"log"
 	"math"
 
 	data "github.com/seeder-research/uMagNUS/data"
@@ -23,6 +24,13 @@ func AddRegionSpinTorque(torque, m *data.Slice, Msat MSlice, regions *Bytes, reg
 	N := mesh.Size()
 	cfg := make3DConf(N)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addregionspintorque: %+v \n", err)
+		}
+	}
+
 	k_addtworegionoommfslonczewskitorque_async(torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
@@ -30,4 +38,10 @@ func AddRegionSpinTorque(torque, m *data.Slice, Msat MSlice, regions *Bytes, reg
 		sX, sY, sZ, N[X], N[Y], N[Z],
 		J, alpha, pfix, pfree, λfix, λfree, ε_prime, float32(cellwgt),
 		cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addregionspintorque end: %+v \n", err)
+		}
+	}
 }

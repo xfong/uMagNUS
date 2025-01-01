@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	"log"
 	"unsafe"
 
 	data "github.com/seeder-research/uMagNUS/data"
@@ -22,11 +23,24 @@ func AddExchange(B, m *data.Slice, Aex_red SymmLUT, Msat MSlice, regions *Bytes,
 	pbc := mesh.PBC_code()
 	cfg := make3DConf(N)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addexchange: %+v \n", err)
+		}
+	}
+
 	k_addexchange_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		unsafe.Pointer(Aex_red), regions.Ptr,
 		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addexchange end: %+v \n", err)
+		}
+	}
 }
 
 // Finds the average exchange strength around each cell, for debugging.
@@ -39,7 +53,20 @@ func ExchangeDecode(dst *data.Slice, Aex_red SymmLUT, regions *Bytes, mesh *data
 	pbc := mesh.PBC_code()
 	cfg := make3DConf(N)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addexchangedecode: %+v \n", err)
+		}
+	}
+
 	k_exchangedecode_async(dst.DevPtr(0), unsafe.Pointer(Aex_red), regions.Ptr,
 		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg,
 		ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addexchangedecode end: %+v \n", err)
+		}
+	}
 }

@@ -1,9 +1,8 @@
 package opencl
 
 import (
-	"fmt"
+	"log"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -21,13 +20,20 @@ func Resize(dst, src *data.Slice, layer int) {
 
 	cfg := make3DConf(dstsize)
 
-	event := k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in resize: %+v \n", err)
+		}
+	}
+
+	k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
 		src.DevPtr(0), srcsize[X], srcsize[Y], srcsize[Z], layer, scalex, scaley, cfg,
 		ClCmdQueue, nil)
 
 	if Synchronous {
-		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
-			fmt.Printf("WaitForEvents failed in resize: %+v \n", err)
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in resize: %+v \n", err)
 		}
 	}
 }

@@ -1,6 +1,8 @@
 package opencl
 
 import (
+	"log"
+
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -11,6 +13,13 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 
 	N := Beff.Len()
 	cfg := make1DConf(N)
+
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addcubicanisotropy2: %+v \n", err)
+		}
+	}
 
 	k_addcubicanisotropy2_async(
 		Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
@@ -26,6 +35,12 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 		c2.DevPtr(Y), c2.Mul(Y),
 		c2.DevPtr(Z), c2.Mul(Z),
 		N, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addcubicanisotropy2 end: %+v \n", err)
+		}
+	}
 }
 
 // Add uniaxial magnetocrystalline anisotropy field to Beff.
@@ -35,6 +50,13 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 
 	N := Beff.Len()
 	cfg := make1DConf(N)
+
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy2: %+v \n", err)
+		}
+	}
 
 	k_adduniaxialanisotropy2_async(
 		Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
@@ -46,6 +68,12 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
 		N, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy2 end: %+v \n", err)
+		}
+	}
 }
 
 // Add uniaxial magnetocrystalline anisotropy field to Beff.
@@ -56,6 +84,13 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 	N := Beff.Len()
 	cfg := make1DConf(N)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy: %+v \n", err)
+		}
+	}
+
 	k_adduniaxialanisotropy_async(
 		Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
@@ -65,6 +100,12 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
 		N, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy end: %+v \n", err)
+		}
+	}
 }
 
 // Add voltage-conrtolled magnetic anisotropy field to Beff.
@@ -77,6 +118,13 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 	N := Beff.Len()
 	cfg := make1DConf(N)
 
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addvoltagecontrolledanisotropy: %+v \n", err)
+		}
+	}
+
 	k_addvoltagecontrolledanisotropy2_async(
 		Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
@@ -87,4 +135,10 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
 		N, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addvoltagecontrolledanisotropy end: %+v \n", err)
+		}
+	}
 }

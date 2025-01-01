@@ -1,6 +1,8 @@
 package opencl
 
 import (
+	"log"
+
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -10,6 +12,13 @@ func AddSlonczewskiTorque2(torque, m *data.Slice, Msat, J, fixedP, alpha, pol, Î
 	N := torque.Len()
 	cfg := make1DConf(N)
 	meshThickness := mesh.WorldSize()[Z]
+
+	var err error
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addslonczewskitorque2: %+v \n", err)
+		}
+	}
 
 	k_addslonczewskitorque2_async(
 		torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
@@ -27,4 +36,10 @@ func AddSlonczewskiTorque2(torque, m *data.Slice, Msat, J, fixedP, alpha, pol, Î
 		float32(meshThickness),
 		float32(flp),
 		N, cfg, ClCmdQueue, nil)
+
+	if Synchronous {
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in addslonczewskitorque2 end: %+v \n", err)
+		}
+	}
 }
