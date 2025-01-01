@@ -220,6 +220,9 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 				// extract real parts (X symmetry)
 				scaleRealParts(fftKern, kCmplx, 1/float32(c.fwPlan.InputLen()))
 				c.kern[i][j] = GPUCopy(fftKern)
+				if err = ClCmdQueue.Finish(); err != nil {
+					fmt.Printf("error waiting main queue to finish after GPUCopy in init: %+v \n ", err)
+				}
 			}
 		}
 	}
