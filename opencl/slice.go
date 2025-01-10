@@ -16,22 +16,33 @@ func NewSlice(nComp int, size [3]int) *data.Slice {
 }
 
 func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
+	var err error
+	var tmpEvents []*cl.Event
+
 	length := prod(size)
 	bytes := length * SIZEOF_FLOAT32
 	ptrs := make([]unsafe.Pointer, nComp)
 	initVal := float32(0.0)
+	tmpEvent = nil
+
 	for c := range ptrs {
 		tmp_buf, err := ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
 		if err != nil {
 			fmt.Printf("CreateEmptyBuffer failed: %+v \n", err)
 		}
 		ptrs[c] = unsafe.Pointer(tmp_buf)
-		fillWait, err := ClCmdQueue.EnqueueFillBuffer(tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, nil)
+		if ClLastEvent != nil {
+			tmpEvents = []*cl.Event{ClLastEvent}
+		}
+		ClLastEvent, err = ClCmdQueue.EnqueueFillBuffer(tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, tmpEvents)
 		if err != nil {
 			fmt.Printf("CreateEmptyBuffer failed: %+v \n", err)
 		}
+		if err = ClCmdQueue.Flush(); err != nil {
+			fmt.Printf("failed to flush queue in newSlice: %+v \n", err)
+		}
 		if Synchronous {
-			if err = cl.WaitForEvents([]*cl.Event{fillWait}); err != nil {
+			if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
 				fmt.Printf("Wait for EnqueueFillBuffer failed: %+v \n", err)
 			}
 		}
@@ -52,23 +63,30 @@ func memFree(ptr unsafe.Pointer) {
 
 func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
+	var tmpEvents []*cl.Event
+
+	tmpEvents = nil
+	if ClLastEvent != nil {
+		tmpEvents = []*cl.Event{ClLastEvent}
+	}
 
 	// debug
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish: %+v \n", err)
+		if tmpEvents != nil {
+			if err = cl.WaitForEvents(tmpEvents); err != nil {
+				fmt.Printf("failed to wait for last event to finish: %+v \n", err)
+			}
 		}
 		timer.Start("memcpyDtoH")
 	}
 
 	// execute
-	if event, err = ClCmdQueue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, nil); err != nil {
+	if ClLastEvent, err = ClCmdQueue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, tmpEvents); err != nil {
 		fmt.Printf("EnqueueReadBuffer failed: %+v \n", err)
 	}
 
 	// sync copy
-	if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+	if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
 		fmt.Printf("WaitForEvents in memcpyDtoH failed: %+v \n", err)
 	}
 
@@ -80,25 +98,32 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 
 func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
+	var tmpEvents []*cl.Event
+
+	tmpEvents = nil
+	if ClLastEvent != nil {
+		tmpEvents = []*cl.Event{ClLastEvent}
+	}
 
 	// debug
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish: %+v \n", err)
+		if tmpEvents != nil {
+			if err = cl.WaitForEvents(tmpEvents); err != nil {
+				fmt.Printf("failed to wait for last event to finish: %+v \n", err)
+			}
 		}
 		timer.Start("memcpyHtoD")
 	}
 
 	// execute
-	event, err = ClCmdQueue.EnqueueWriteBuffer((*cl.MemObject)(dst), false, 0, bytes, src, nil)
+	ClLastEvent, err = ClCmdQueue.EnqueueWriteBuffer((*cl.MemObject)(dst), false, 0, bytes, src, tmpEvents)
 	if err != nil {
 		fmt.Printf("EnqueueWriteBuffer failed: %+v \n", err)
 	}
 
 	if Synchronous {
 		// sync copy
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
 			fmt.Printf("WaitForEvents in memcpyHtoD failed: %+v \n", err)
 		}
 		timer.Stop("memcpyHtoD")
@@ -107,24 +132,32 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 
 func MemCpy(dst, src unsafe.Pointer, bytes int) {
 	var err error
+	var tmpEvents []*cl.Event
+
+	tmpEvents = nil
+	if ClLastEvent != nil {
+		tmpEvents = []*cl.Event{ClLastEvent}
+	}
 
 	// debug
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish: %+v \n", err)
+		if tmpEvents != nil {
+			if err = cl.WaitForEvents(tmpEvents); err != nil {
+				fmt.Printf("failed to wait for last event to finish: %+v \n", err)
+			}
 		}
 		timer.Start("memcpy")
 	}
 
 	// execute
-	event, err := ClCmdQueue.EnqueueCopyBuffer((*cl.MemObject)(src), (*cl.MemObject)(dst), 0, 0, bytes, nil)
+	ClLastEvent, err = ClCmdQueue.EnqueueCopyBuffer((*cl.MemObject)(src), (*cl.MemObject)(dst), 0, 0, bytes, tmpEvents)
 	if err != nil {
 		fmt.Printf("EnqueueCopyBuffer failed: %+v \n", err)
 	}
 
 	if Synchronous {
 		// sync copy
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
 			fmt.Printf("First WaitForEvents in memcpy failed: %+v \n", err)
 		}
 		timer.Stop("memcpy")
@@ -135,11 +168,19 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 // To be carefully used on unified slice (need sync)
 func Memset(s *data.Slice, val ...float32) {
 	var err error
+	var tmpEvents []*cl.Event
+
+	tmpEvents = nil
+	if ClLastEvent != nil {
+		tmpEvents = []*cl.Event{ClLastEvent}
+	}
 
 	// debug
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in beginning of memset: %+v \n", err)
+		if tmpEvent != nil {
+			if err = cl.WaitForEvents(tmpEvents); err != nil {
+				fmt.Printf("failed to wait for last event to finish in beginning of memset: %+v \n", err)
+			}
 		}
 		timer.Start("memset")
 	}
@@ -147,13 +188,17 @@ func Memset(s *data.Slice, val ...float32) {
 	util.Argument(len(val) == s.NComp())
 
 	for c, v := range val {
-		event, err := ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, nil)
+		ClLastEvent, err := ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, tmpEvents)
 		if err != nil {
 			fmt.Printf("EnqueueFillBuffer failed: %+v \n", err)
 		}
+		if err = ClCmdQueue.Flush(); err != nil {
+			fmt.Printf("failed to flush queue in memset: %+v \n", err)
+		}
+		tmpEvents = []*cl.Event{ClLastEvent}
 		if Synchronous { // debug
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
-				fmt.Printf("Second WaitForEvents in memset failed: %+v \n", err)
+			if err = cl.WaitForEvents(tmpEvents); err != nil {
+				fmt.Printf("WaitForEvents failed in memset: %+v \n", err)
 			}
 		}
 	}
@@ -174,27 +219,49 @@ func SetCell(s *data.Slice, comp int, ix, iy, iz int, value float32) {
 }
 
 func SetElem(s *data.Slice, comp int, index int, value float32) {
+	var err error
+	var tmpEvents []*cl.Event
+
 	f := value
-	event, err := ClCmdQueue.EnqueueWriteBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), nil)
+
+	tmpEvents = nil
+	if ClLastEvent != nil {
+		tmpEvents = []*cl.Event{ClLastEvent}
+	}
+	ClLastEvent, err = ClCmdQueue.EnqueueWriteBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), tmpEvents)
 	if err != nil {
 		fmt.Printf("EnqueueWriteBuffer failed: %+v \n", err)
 		return
 	}
+	if err = ClCmdQueue.Flush(); err != nil {
+		fmt.Printf("failed to flush queue in enqueuewritebuffer: %+v \n", err)
+	}
 	if Synchronous {
-		if err = cl.WaitForEvents([](*cl.Event){event}); err != nil {
+		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
 			fmt.Printf("WaitForEvents in SetElem failed: %+v \n", err)
 		}
 	}
 }
 
 func GetElem(s *data.Slice, comp int, index int) float32 {
+	var err error
 	var f float32
-	event, err := ClCmdQueue.EnqueueReadBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), nil)
+	var tmpEvents []*cl.Event
+
+	tmpEvents = nil
+	if ClLastEvent != nil {
+		tmpEvents = []*cl.Event{ClLastEvent}
+	}
+	ClLastEvent, err = ClCmdQueue.EnqueueReadBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), tmpEvents)
 	if err != nil {
 		fmt.Printf("EnqueueReadBuffer failed: %+v \n", err)
 	}
+	if err = ClCmdQueue.Flush(); err != nil {
+		fmt.Printf("failed to flush queue in enqueuewritebuffer: %+v \n", err)
+	}
+
 	// Must sync
-	if err = cl.WaitForEvents([](*cl.Event){event}); err != nil {
+	if err = cl.WaitForEvents([](*cl.Event){ClLastEvent}); err != nil {
 		fmt.Printf("WaitForEvents in GetElem failed: %+v \n", err)
 	}
 	return f

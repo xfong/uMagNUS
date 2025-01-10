@@ -21,11 +21,18 @@ func MemAlloc(bytes int) *cl.MemObject {
 
 // Returns a copy of in, allocated on GPU.
 func GPUCopy(in *data.Slice) *data.Slice {
+	var err error
+
 	s := NewSlice(in.NComp(), in.Size())
 	data.Copy(s, in)
+
+	if err = ClCmdQueue.Flush(); err != nil {
+		log.Printf("failed to flush queue in gpucopy: %+v \n, err")
+	}
+
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in gpucopy: %+v \n", err)
+		if err := cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
+			log.Printf("failed to wait for copy to finish in gpucopy: %+v \n", err)
 		}
 	}
 	return s

@@ -32,6 +32,7 @@ var (
 	ClDevice     *cl.Device                // device associated with global OpenCL context
 	ClCtx        *cl.Context               // global OpenCL context
 	ClCmdQueue   *cl.CommandQueue          // command queues attached to global OpenCL context
+	ClLastEvent  *cl.Event                 // event for latest item inserted into command queue
 	ClProgram    *cl.Program               // handle to program in the global OpenCL context
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 	initialized  = false                   // Initial state defaults to false
@@ -215,6 +216,7 @@ func Init(gpu int) {
 	ClCtx = context
 	ClCmdQueue = queue
 	ClProgram = program
+	ClLastEvent = nil
 
 	// Set basic configuration for distributing
 	// work-items across compute units

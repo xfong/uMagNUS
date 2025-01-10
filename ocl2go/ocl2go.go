@@ -244,9 +244,6 @@ func init(){
 // Wrapper for {{.Name}} OpenCL kernel, asynchronous.
 func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{end}} cfg *config, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
 	if Synchronous{ // debug
-		if err := queue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in beginning of {{.Name}}: %+v", err)
-		}
 		timer.Start("{{.Name}}")
 	}
 
@@ -262,9 +259,14 @@ func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{
 //	args := {{.Name}}_args.argptr[:]
 	event := LaunchKernel("{{.Name}}", cfg.Grid, cfg.Block, queue, events)
 
+	err := queue.Flush()
+	if err != nil {
+		fmt.Printf("failed to wait for queue to flush at end of {{.Name}}: %+v", err)
+	}
+
 	if Synchronous{ // debug
-		if err := queue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish at end of {{.Name}}: %+v", err)
+		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			fmt.Printf("failed to wait for event to finish at end of {{.Name}}: %+v", err)
 		}
 		timer.Stop("{{.Name}}")
 	}
