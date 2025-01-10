@@ -16,14 +16,13 @@ func NewSlice(nComp int, size [3]int) *data.Slice {
 }
 
 func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
-	var err error
 	var tmpEvents []*cl.Event
 
 	length := prod(size)
 	bytes := length * SIZEOF_FLOAT32
 	ptrs := make([]unsafe.Pointer, nComp)
 	initVal := float32(0.0)
-	tmpEvent = nil
+	tmpEvents = nil
 
 	for c := range ptrs {
 		tmp_buf, err := ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
@@ -177,7 +176,7 @@ func Memset(s *data.Slice, val ...float32) {
 
 	// debug
 	if Synchronous {
-		if tmpEvent != nil {
+		if tmpEvents != nil {
 			if err = cl.WaitForEvents(tmpEvents); err != nil {
 				fmt.Printf("failed to wait for last event to finish in beginning of memset: %+v \n", err)
 			}

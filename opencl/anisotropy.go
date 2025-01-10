@@ -3,6 +3,7 @@ package opencl
 import (
 	"log"
 
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -17,13 +18,13 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 	var err error
 	var tmpEvents []*cl.Event
 
-	tmpEvent = nil
+	tmpEvents = nil
 	if ClLastEvent != nil {
-		tmpEvent = []*cl.Event{ClLastEvent}
+		tmpEvents = []*cl.Event{ClLastEvent}
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvent); err != nil {
+		if err = cl.WaitForEvents(tmpEvents); err != nil {
 			log.Printf("failed to wait for queue to finish in addcubicanisotropy2: %+v \n", err)
 		}
 	}
@@ -65,13 +66,13 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 	var err error
 	var tmpEvents []*cl.Event
 
-	tmpEvent = nil
+	tmpEvents = nil
 	if ClLastEvent != nil {
-		tmpEvent = []*cl.Event{ClLastEvent}
+		tmpEvents = []*cl.Event{ClLastEvent}
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvent); err != nil {
+		if err = cl.WaitForEvents(tmpEvents); err != nil {
 			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy2: %+v \n", err)
 		}
 	}
@@ -109,13 +110,13 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 	var err error
 	var tmpEvents []*cl.Event
 
-	tmpEvent = nil
+	tmpEvents = nil
 	if ClLastEvent != nil {
-		tmpEvent = []*cl.Event{ClLastEvent}
+		tmpEvents = []*cl.Event{ClLastEvent}
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvent); err != nil {
+		if err = cl.WaitForEvents(tmpEvents); err != nil {
 			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy: %+v \n", err)
 		}
 	}
@@ -154,13 +155,13 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 	var err error
 	var tmpEvents []*cl.Event
 
-	tmpEvent = nil
+	tmpEvents = nil
 	if ClLastEvent != nil {
-		tmpEvent = []*cl.Event{ClLastEvent}
+		tmpEvents = []*cl.Event{ClLastEvent}
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvent); err != nil {
+		if err = cl.WaitForEvents(tmpEvents); err != nil {
 			log.Printf("failed to wait for queue to finish in addvoltagecontrolledanisotropy: %+v \n", err)
 		}
 	}
