@@ -41,14 +41,14 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, even
 	event := k_xorwow_seed_async(unsafe.Pointer(p.Status_buf), unsafe.Pointer(jump_mat), seed, &config{[]int{totalCount}, []int{p.GetGroupSize()}}, queue, seed_events)
 
 	p.Ini = true
-	err = cl.WaitForEvents([]*cl.Event{event})
+	err = cl.WaitForEvents(event)
 	if err != nil {
 		fmt.Printf("Second WaitForEvents failed in InitRNG: %+v \n", err)
 	}
 
 }
 
-func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) []*cl.Event {
 
 	if p.Ini == false {
 		log.Fatalln("Generator has not been initialized!")
@@ -74,7 +74,7 @@ func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_si
 	return event
 }
 
-func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) []*cl.Event {
 
 	if p.Ini == false {
 		log.Fatalln("Generator has not been initialized!")

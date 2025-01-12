@@ -48,14 +48,14 @@ func (p *THREEFRY_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, ev
 		&config{[]int{totalCount}, []int{p.GetGroupSize()}}, queue, []*cl.Event{seed_event})
 
 	p.Ini = true
-	err = cl.WaitForEvents([]*cl.Event{event})
+	err = cl.WaitForEvents(event)
 	if err != nil {
 		fmt.Printf("Second WaitForEvents failed in InitRNG: %+v \n", err)
 	}
 
 }
 
-func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) []*cl.Event {
 
 	if p.Ini == false {
 		log.Fatalln("Generator has not been initialized!")
@@ -82,7 +82,7 @@ func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_
 	return event
 }
 
-func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) []*cl.Event {
 
 	if p.Ini == false {
 		log.Fatalln("Generator has not been initialized!")

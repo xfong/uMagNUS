@@ -3,7 +3,6 @@ package opencl
 import (
 	"log"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -16,15 +15,11 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 	cfg := make1DConf(N)
 
 	var err error
-	var tmpEvents []*cl.Event
 
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
+	tmpEvents := LastEventToWaitList()
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addcubicanisotropy2: %+v \n", err)
 		}
 	}
@@ -42,16 +37,17 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 		c2.DevPtr(X), c2.Mul(X),
 		c2.DevPtr(Y), c2.Mul(Y),
 		c2.DevPtr(Z), c2.Mul(Z),
-		N, cfg, ClCmdQueue, tmpEvents)
+		N, cfg, ClCmdQueue[0], tmpEvents)
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to flush queue in addcubicanisotropy2: %+v \n", err)
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addcubicanisotropy2 end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -64,15 +60,11 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 	cfg := make1DConf(N)
 
 	var err error
-	var tmpEvents []*cl.Event
 
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
+	tmpEvents := LastEventToWaitList()
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy2: %+v \n", err)
 		}
 	}
@@ -86,16 +78,17 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 		u.DevPtr(X), u.Mul(X),
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
-		N, cfg, ClCmdQueue, tmpEvents)
+		N, cfg, ClCmdQueue[0], tmpEvents)
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to flush queue in adduniaxialanisotropy2: %+v \n", err)
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy2 end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -108,15 +101,11 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 	cfg := make1DConf(N)
 
 	var err error
-	var tmpEvents []*cl.Event
 
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
+	tmpEvents := LastEventToWaitList()
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy: %+v \n", err)
 		}
 	}
@@ -129,16 +118,17 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 		u.DevPtr(X), u.Mul(X),
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
-		N, cfg, ClCmdQueue, tmpEvents)
+		N, cfg, ClCmdQueue[0], tmpEvents)
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to flush queue in adduniaxialanisotropy: %+v \n", err)
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in adduniaxialanisotropy end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -153,15 +143,11 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 	cfg := make1DConf(N)
 
 	var err error
-	var tmpEvents []*cl.Event
 
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
+	tmpEvents := LastEventToWaitList()
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addvoltagecontrolledanisotropy: %+v \n", err)
 		}
 	}
@@ -175,15 +161,16 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 		u.DevPtr(X), u.Mul(X),
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
-		N, cfg, ClCmdQueue, tmpEvents)
+		N, cfg, ClCmdQueue[0], tmpEvents)
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to flush queue in addvoltagecontrolledanisotropy: %+v \n", err)
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addvoltagecontrolledanisotropy end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

@@ -17,7 +17,7 @@ type fft3DR2CPlan struct {
 
 // 3D single-precision real-to-complex FFT plan.
 func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
-	handle := cl.NewVkFFTPlan(ClCtx, ClCmdQueue)
+	handle := cl.NewVkFFTPlan(ClCtx, ClCmdQueue[0])
 	handle.VkFFTSetFFTPlanSize([]int{Nx, Ny, Nz})
 
 	return fft3DR2CPlan{fftplan{handle}, [3]int{Nx, Ny, Nz}}
@@ -27,8 +27,10 @@ func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 // src and dst are 3D arrays stored 1D arrays.
 func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 
+	//tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err := WaitLastEvent(); err != nil {
 			log.Panicf("failed to wait for queue to finish in beginning of fft3dr2c.execasync: %+v \n", err)
 		}
 		timer.Start("fft")
@@ -55,10 +57,11 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	}
 
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err := WaitLastEvent(); err != nil {
 			log.Panicf("failed to wait for queue to finish at end of fft3dr2c.execasync: %+v \n", err)
 		}
 		timer.Stop("fft")
+		EmptyLastEvent()
 	}
 
 	return err

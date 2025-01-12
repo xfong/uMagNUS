@@ -31,8 +31,8 @@ var (
 	ClDevices    []*cl.Device              // list of devices global OpenCL context may be associated with
 	ClDevice     *cl.Device                // device associated with global OpenCL context
 	ClCtx        *cl.Context               // global OpenCL context
-	ClCmdQueue   *cl.CommandQueue          // command queues attached to global OpenCL context
-	ClLastEvent  *cl.Event                 // event for latest item inserted into command queue
+	ClCmdQueue   []*cl.CommandQueue        // command queues attached to global OpenCL context
+	ClLastEvent  []*cl.Event               // event for latest item inserted into command queue
 	ClProgram    *cl.Program               // handle to program in the global OpenCL context
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 	initialized  = false                   // Initial state defaults to false
@@ -142,11 +142,13 @@ func Init(gpu int) {
 	}
 
 	// Create opencl command queues on selected device
-	var queue *cl.CommandQueue
-	queue, err = context.CreateCommandQueue(ClDevice, 0)
-	if err != nil {
-		fmt.Printf("CreateCommandQueue failed: %+v \n", err)
-		return
+	queue := make([]*cl.CommandQueue, 3)
+	for idx := range queue {
+		queue[idx], err = context.CreateCommandQueue(ClDevice, 0)
+		if err != nil {
+			fmt.Printf("CreateCommandQueue failed: %+v \n", err)
+			return
+		}
 	}
 
 	// Create opencl program on selected opencl device
@@ -300,7 +302,9 @@ func (s *GPU) getGpuPlatform() *cl.Platform {
 }
 
 func ReleaseAndClean() {
-	ClCmdQueue.Release()
+	for _, q := range ClCmdQueue {
+		q.Release()
+	}
 	ClProgram.Release()
 	ClCtx.Release()
 }

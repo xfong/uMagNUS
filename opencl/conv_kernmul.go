@@ -16,20 +16,28 @@ func kernMulRSymm3D_async(fftM [3]*data.Slice, Kxx, Kyy, Kzz, Kyz, Kxz, Kxy *dat
 	cfg := make3DConf([3]int{Nx, Ny, Nz})
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulrsymm3d: %+v \n", err)
 		}
 	}
 
-	k_kernmulRSymm3D_async(fftM[X].DevPtr(0), fftM[Y].DevPtr(0), fftM[Z].DevPtr(0),
+	ClLastEvent = k_kernmulRSymm3D_async(fftM[X].DevPtr(0), fftM[Y].DevPtr(0), fftM[Z].DevPtr(0),
 		Kxx.DevPtr(0), Kyy.DevPtr(0), Kzz.DevPtr(0), Kyz.DevPtr(0), Kxz.DevPtr(0), Kxy.DevPtr(0),
-		Nx, Ny, Nz, cfg, ClCmdQueue, nil)
+		Nx, Ny, Nz, cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in kernmulrsymm3d: %+v", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulrsymm3d end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -39,20 +47,28 @@ func kernMulRSymm2Dxy_async(fftMx, fftMy, Kxx, Kyy, Kxy *data.Slice, Nx, Ny int)
 	cfg := make3DConf([3]int{Nx, Ny, 1})
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulrsymm2dxy: %+v \n", err)
 		}
 	}
 
-	k_kernmulRSymm2Dxy_async(fftMx.DevPtr(0), fftMy.DevPtr(0),
+	ClLastEvent = k_kernmulRSymm2Dxy_async(fftMx.DevPtr(0), fftMy.DevPtr(0),
 		Kxx.DevPtr(0), Kyy.DevPtr(0), Kxy.DevPtr(0),
-		Nx, Ny, cfg, ClCmdQueue, nil)
+		Nx, Ny, cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in kernmulrsymm2dxy: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulrsymm2dxy end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -62,19 +78,23 @@ func kernMulRSymm2Dz_async(fftMz, Kzz *data.Slice, Nx, Ny int) {
 	cfg := make3DConf([3]int{Nx, Ny, 1})
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulrsymm2dz: %+v \n", err)
 		}
 	}
 
-	k_kernmulRSymm2Dz_async(fftMz.DevPtr(0), Kzz.DevPtr(0), Nx, Ny, cfg,
-		ClCmdQueue, nil)
+	ClLastEvent = k_kernmulRSymm2Dz_async(fftMz.DevPtr(0), Kzz.DevPtr(0), Nx, Ny, cfg,
+		ClCmdQueue[0], tmpEvents)
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulrsymm2dz end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -85,18 +105,26 @@ func kernMulC_async(fftM, K *data.Slice, Nx, Ny int) {
 	cfg := make3DConf([3]int{Nx, Ny, 1})
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulc: %+v \n", err)
 		}
 	}
 
-	k_kernmulC_async(fftM.DevPtr(0), K.DevPtr(0), Nx, Ny, cfg,
-		ClCmdQueue, nil)
+	ClLastEvent = k_kernmulC_async(fftM.DevPtr(0), K.DevPtr(0), Nx, Ny, cfg,
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in kernmulc: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in kernmulc end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

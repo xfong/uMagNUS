@@ -21,19 +21,27 @@ func Resize(dst, src *data.Slice, layer int) {
 	cfg := make3DConf(dstsize)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in resize: %+v \n", err)
 		}
 	}
 
-	k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
+	ClLastEvent = k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
 		src.DevPtr(0), srcsize[X], srcsize[Y], srcsize[Z], layer, scalex, scaley, cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in resize: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in resize: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

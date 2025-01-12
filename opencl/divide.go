@@ -16,20 +16,30 @@ func Divide(dst, a, b *data.Slice) {
 	cfg := make1DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in divide: %+v \n", err)
 		}
 	}
 
+	// TODO: create multiple queues(??)
+	EmptyLastEvent()
 	for c := 0; c < nComp; c++ {
-		k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
-			ClCmdQueue, nil)
+		tmpEvent := k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
+			ClCmdQueue[0], tmpEvents)
+		if err = ClCmdQueue[0].Flush(); err != nil {
+			log.Printf("failed to flush queue in divide: %+v \n", err)
+		}
+		ClLastEvent = append(ClLastEvent, tmpEvent[0])
 	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in divide end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

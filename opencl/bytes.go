@@ -25,31 +25,28 @@ func NewBytes(Len int) *Bytes {
 	}
 	zeroPattern := uint8(0)
 
-	var tmpEvents []*cl.Event
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
-
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in newbytes: %+v \n", err)
 		}
 	}
 
-	ClLastEvent, err = ClCmdQueue.EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, tmpEvents)
+	var tmpEvent *cl.Event
+	tmpEvent, err = ClCmdQueue[0].EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to flush queue in newbytes")
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents([](*cl.Event){ClLastEvent}); err != nil {
+		if err = cl.WaitForEvents([]*cl.Event{tmpEvent}); err != nil {
 			log.Panic("WaitForEvents failed in newbytes:", err)
 		}
+	} else {
+		ClLastEvent = append(ClLastEvent, tmpEvent)
 	}
 	return &Bytes{unsafe.Pointer(ptr), Len}
 }
@@ -58,18 +55,12 @@ func NewBytes(Len int) *Bytes {
 func (dst *Bytes) Upload(src []byte) {
 	util.Argument(dst.Len == len(src))
 	MemCpyHtoD(dst.Ptr, unsafe.Pointer(&src[0]), dst.Len)
-	if err := ClCmdQueue.Flush(); err != nil {
-		log.Printf("failed to flush queue in bytes upload")
-	}
 }
 
 // Copy on device: dst = src.
 func (dst *Bytes) Copy(src *Bytes) {
 	util.Argument(dst.Len == src.Len)
 	MemCpy(dst.Ptr, src.Ptr, dst.Len)
-	if err := ClCmdQueue.Flush(); err != nil {
-		log.Printf("failed to flush queue in bytes copy")
-	}
 }
 
 // Copy to host: dst = src.
@@ -87,32 +78,32 @@ func (dst *Bytes) Set(index int, value byte) {
 	src := value
 
 	var err error
-	var tmpEvents []*cl.Event
 
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
+	tmpEvents := LastEventToWaitList()
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in bytes set: %+v \n", err)
 		}
 	}
 
-	ClLastEvent, err := ClCmdQueue.EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), tmpEvents)
+	var tmpEvent *cl.Event
+	tmpEvent, err = ClCmdQueue[0].EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), tmpEvents)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to wait for flush queue in bytes set: %+v \n", err)
 	}
 
 	if Synchronous {
-		if err = cl.WaitForEvents([](*cl.Event){ClLastEvent}); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Panic("WaitForEvents failed in bytes set:", err)
 		}
+		ClLastEvent = []*cl.Event{}
+	} else {
+		ClLastEvent = []*cl.Event{tmpEvent}
 	}
 }
 
@@ -125,30 +116,28 @@ func (src *Bytes) Get(index int) byte {
 	dst := make([]byte, 1)
 
 	var err error
-	var tmpEvents []*cl.Event
+	var tmpEvent *cl.Event
 
-	tmpEvents = nil
-	if ClLastEvent != nil {
-		tmpEvents = []*cl.Event{ClLastEvent}
-	}
+	tmpEvents := LastEventToWaitList()
 
 	if Synchronous {
-		if err = cl.WaitForEvents(tmpEvents); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in bytes get: %+v \n", err)
 		}
 	}
 
-	ClLastEvent, err = ClCmdQueue.EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, tmpEvents)
+	tmpEvent, err = ClCmdQueue[0].EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, tmpEvents)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = ClCmdQueue.Flush(); err != nil {
+	if err = ClCmdQueue[0].Flush(); err != nil {
 		log.Printf("failed to flush queue in bytes get: %+v \n", err)
 	}
+	ClLastEvent = []*cl.Event{}
 
 	// Must synchronize
-	if err = cl.WaitForEvents([](*cl.Event){ClLastEvent}); err != nil {
+	if err = cl.WaitForEvents([]*cl.Event{tmpEvent}); err != nil {
 		log.Panic("WaitForEvents failed in bytes get:", err)
 	}
 	return dst[0]
@@ -157,10 +146,8 @@ func (src *Bytes) Get(index int) byte {
 // Frees the GPU memory and disables the slice.
 func (b *Bytes) Free() {
 	// Must synchronize
-	if ClLastEvent != nil {
-		if err := cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
-			log.Printf("failed to wait for queue to finish in bytes free: %+v \n", err)
-		}
+	if err := WaitLastEvent(); err != nil {
+		log.Printf("failed to wait for queue to finish in bytes free: %+v \n", err)
 	}
 
 	if b.Ptr != nil {

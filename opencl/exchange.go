@@ -24,22 +24,30 @@ func AddExchange(B, m *data.Slice, Aex_red SymmLUT, Msat MSlice, regions *Bytes,
 	cfg := make3DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addexchange: %+v \n", err)
 		}
 	}
 
-	k_addexchange_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
+	ClLastEvent = k_addexchange_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		unsafe.Pointer(Aex_red), regions.Ptr,
-		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue, nil)
+		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in addexchange: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addexchange end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -54,19 +62,27 @@ func ExchangeDecode(dst *data.Slice, Aex_red SymmLUT, regions *Bytes, mesh *data
 	cfg := make3DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addexchangedecode: %+v \n", err)
 		}
 	}
 
-	k_exchangedecode_async(dst.DevPtr(0), unsafe.Pointer(Aex_red), regions.Ptr,
+	ClLastEvent = k_exchangedecode_async(dst.DevPtr(0), unsafe.Pointer(Aex_red), regions.Ptr,
 		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in addexchangedecode: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addexchangedecode end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

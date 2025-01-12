@@ -14,8 +14,8 @@ import (
 
 type Prng_ interface {
 	Init(uint64, *cl.CommandQueue, []*cl.Event)
-	GenerateUniform(unsafe.Pointer, int, *cl.CommandQueue, []*cl.Event) *cl.Event
-	GenerateNormal(unsafe.Pointer, int, *cl.CommandQueue, []*cl.Event) *cl.Event
+	GenerateUniform(unsafe.Pointer, int, *cl.CommandQueue, []*cl.Event) []*cl.Event
+	GenerateNormal(unsafe.Pointer, int, *cl.CommandQueue, []*cl.Event) []*cl.Event
 	GetGroupSize() int
 	GetGroupCount() int
 	RecommendSize() int
@@ -34,12 +34,12 @@ type Generator struct {
 func NewGenerator(name string) *Generator {
 	switch name {
 	case "threefry":
-		oclRAND.Init(ClCmdQueue, Synchronous, KernList)
+		oclRAND.Init(ClCmdQueue[0], Synchronous, KernList)
 		var prng_ptr Prng_
 		prng_ptr = NewTHREEFRYRNGParams()
 		return &Generator{Name: "threefry", PRNG: prng_ptr}
 	case "xorwow":
-		oclRAND.Init(ClCmdQueue, Synchronous, KernList)
+		oclRAND.Init(ClCmdQueue[0], Synchronous, KernList)
 		var prng_ptr Prng_
 		prng_ptr = NewXORWOWRNGParams()
 		return &Generator{Name: "xorwow", PRNG: prng_ptr}
@@ -52,12 +52,12 @@ func NewGenerator(name string) *Generator {
 func (g *Generator) CreatePNG() {
 	switch g.Name {
 	case "threefry":
-		oclRAND.Init(ClCmdQueue, Synchronous, KernList)
+		oclRAND.Init(ClCmdQueue[0], Synchronous, KernList)
 		var prng_ptr Prng_
 		prng_ptr = NewTHREEFRYRNGParams()
 		g.PRNG = prng_ptr
 	case "xorwow":
-		oclRAND.Init(ClCmdQueue, Synchronous, KernList)
+		oclRAND.Init(ClCmdQueue[0], Synchronous, KernList)
 		var prng_ptr Prng_
 		prng_ptr = NewXORWOWRNGParams()
 		g.PRNG = prng_ptr
@@ -69,9 +69,9 @@ func (g *Generator) CreatePNG() {
 func (g *Generator) Init(seed *uint64) {
 	g.buf_size = g.PRNG.RecommendSize()
 	if seed == nil {
-		g.PRNG.Init(initRNG(), ClCmdQueue, nil)
+		g.PRNG.Init(initRNG(), ClCmdQueue[0], nil)
 	} else {
-		g.PRNG.Init(*seed, ClCmdQueue, nil)
+		g.PRNG.Init(*seed, ClCmdQueue[0], nil)
 	}
 	if g.buf == nil {
 		g.buf = Buffer(1, [3]int{g.buf_size, 1, 1})
@@ -90,18 +90,21 @@ func (g *Generator) Init(seed *uint64) {
 }
 
 func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
-	var event *cl.Event
+	var event []*cl.Event
+	var tmpEvent *cl.Event
 	var err error
 	demand, demand_offset := d_size, 0
+
+	//tmpEvents := LastEventToWaitList()
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("Waiting for Command Queue to empty prior to generating random numbers failed: %+v \n", err)
 		}
 	}
 	for demand > 0 {
 		if g.supply <= 0 {
-			event = g.PRNG.GenerateUniform(g.buf.DevPtr(0), g.buf_size, ClCmdQueue, nil)
-			err = cl.WaitForEvents([]*cl.Event{event})
+			event = g.PRNG.GenerateUniform(g.buf.DevPtr(0), g.buf_size, ClCmdQueue[0], nil)
+			err = cl.WaitForEvents(event)
 			if err != nil {
 				fmt.Printf("WaitForEvents in generating uniform random numbers failed: %+v \n", err)
 			}
@@ -113,22 +116,22 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 			g.sup_offset = 0
 		}
 		if g.supply >= demand {
-			event, err = ClCmdQueue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*demand, nil)
+			tmpEvent, err = ClCmdQueue[0].EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*demand, nil)
 			if err != nil {
 				fmt.Printf("EnqueueCopyBuffer in copying uniform random numbers failed: %+v \n", err)
 			}
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			if err = cl.WaitForEvents([]*cl.Event{tmpEvent}); err != nil {
 				fmt.Printf("WaitForEvents in copying uniform random numbers failed: %+v \n", err)
 			}
 			g.sup_offset += demand
 			g.supply -= demand
 			demand = 0
 		} else {
-			event, err = ClCmdQueue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*g.supply, nil)
+			tmpEvent, err = ClCmdQueue[0].EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*g.supply, nil)
 			if err != nil {
 				fmt.Printf("EnqueueCopyBuffer in copying uniform random numbers failed: %+v \n", err)
 			}
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			if err = cl.WaitForEvents([]*cl.Event{tmpEvent}); err != nil {
 				fmt.Printf("WaitForEvents in copying uniform random numbers failed: %+v \n", err)
 			}
 			demand -= g.supply
@@ -139,13 +142,14 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 }
 
 func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
-	var event *cl.Event
+	var event []*cl.Event
+	var tmpEvent *cl.Event
 	var err error
 	demand, demand_offset := d_size, 0
 	for demand > 0 {
 		if g.supply <= 0 {
-			event = g.PRNG.GenerateNormal(g.buf.DevPtr(0), g.buf_size, ClCmdQueue, nil)
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			event = g.PRNG.GenerateNormal(g.buf.DevPtr(0), g.buf_size, ClCmdQueue[0], nil)
+			if err = cl.WaitForEvents(event); err != nil {
 				fmt.Printf("WaitForEvents in generating normally distributed random numbers failed: %+v \n", err)
 			}
 			bufferSize := g.buf.Size()
@@ -156,22 +160,22 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 			g.sup_offset = 0
 		}
 		if g.supply >= demand {
-			event, err = ClCmdQueue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*demand, nil)
+			tmpEvent, err = ClCmdQueue[0].EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*demand, nil)
 			if err != nil {
 				fmt.Printf("EnqueueCopyBuffer in copying normally distributed random numbers failed: %+v \n", err)
 			}
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			if err = cl.WaitForEvents([]*cl.Event{tmpEvent}); err != nil {
 				fmt.Printf("WaitForEvents in copying normally distributed random numbers failed: %+v \n", err)
 			}
 			g.sup_offset += demand
 			g.supply -= demand
 			demand = 0
 		} else {
-			event, err = ClCmdQueue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*g.supply, nil)
+			tmpEvent, err = ClCmdQueue[0].EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*g.supply, nil)
 			if err != nil {
 				fmt.Printf("EnqueueCopyBuffer in copying normally distributed random numbers failed: %+v \n", err)
 			}
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			if err = cl.WaitForEvents([]*cl.Event{tmpEvent}); err != nil {
 				fmt.Printf("WaitForEvents in copying uniform normally distributed numbers failed: %+v \n", err)
 			}
 			demand -= g.supply

@@ -32,23 +32,31 @@ func AddRegionExchangeField(B, m *data.Slice, Msat MSlice, regions *Bytes, regio
 	sig2_eff := sig2 * float32(cellwgt)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addregionexchangefield: %+v \n", err)
 		}
 	}
 
-	k_tworegionexchange_field_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
+	ClLastEvent = k_tworegionexchange_field_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, sig_eff, sig2_eff, N[X], N[Y], N[Z], cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("error flushing queue in addregionexchangefield: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addregionexchangefield end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -71,22 +79,30 @@ func AddRegionExchangeEdens(Edens, m *data.Slice, Msat MSlice, regions *Bytes, r
 	sig2_eff := sig2 * float32(cellwgt)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addregionexchangeedens: %+v \n", err)
 		}
 	}
 
-	k_tworegionexchange_edens_async(Edens.DevPtr(0),
+	ClLastEvent = k_tworegionexchange_edens_async(Edens.DevPtr(0),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, sig_eff, sig2_eff, N[X], N[Y], N[Z], cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("error flushing queue in addregionexchangeedens: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addregionexchangeedens end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

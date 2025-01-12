@@ -78,10 +78,8 @@ func Recycle(s *data.Slice) {
 func FreeBuffers() {
 	var err error
 
-	if ClLastEvent != nil {
-		if err = cl.WaitForEvents([]*cl.Event{ClLastEvent}); err != nil {
-			log.Printf("failed to wait for queue to finish in freebuffers: %+v \n", err)
-		}
+	if err = WaitLastEvent(); err != nil {
+		log.Printf("failed to wait for queue to finish in freebuffers: %+v \n", err)
 	}
 
 	for _, size := range buf_pool {

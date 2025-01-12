@@ -29,20 +29,22 @@ func Sum(in *data.Slice) float32 {
 
 	out := reduceBuf()
 
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in sum beginning: %+v \n", err)
 		}
 	}
 
-	k_reducesum_async(in.DevPtr(0), out, 0,
-		in.Len(), reducecfg, ClCmdQueue, nil)
+	ClLastEvent = k_reducesum_async(in.DevPtr(0), out, 0,
+		in.Len(), reducecfg, ClCmdQueue[0], tmpEvents)
 
-	copyback(out, &result)
-	if err = ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		fmt.Printf("failed to flush queue in sum: %+v \n", err)
 	}
 
+	copyback(out, &result)
 	return result
 }
 
@@ -60,22 +62,26 @@ func Dot(a, b *data.Slice) float32 {
 		out[c] = reduceBuf()
 	}
 
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in dot beginning: %+v \n", err)
 		}
 	}
 
+	EmptyLastEvent()
 	for c := 0; c < numComp; c++ {
-		k_reducedot_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
-			a.Len(), reducecfg, ClCmdQueue, nil) // all components add to out
+		tmpEvent := k_reducedot_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
+			a.Len(), reducecfg, ClCmdQueue[0], tmpEvents) // all components add to out
+		if err = ClCmdQueue[0].Flush(); err != nil {
+			fmt.Printf("failed to flush queue in dot: %+v \n", err)
+		}
+		ClLastEvent = append(ClLastEvent, tmpEvent[0])
 	}
 
 	for c := 0; c < a.NComp(); c++ {
 		copyback(out[c], &results[c])
-	}
-	if err = ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("failed to wait for queue to finish in dot: %+v \n", err)
 	}
 
 	for _, v := range results {
@@ -92,19 +98,18 @@ func MaxAbs(in *data.Slice) float32 {
 
 	out := reduceBuf()
 
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in maxabs beginning: %+v \n", err)
 		}
 	}
 
-	k_reducemaxabs_async(in.DevPtr(0), out, 0,
-		in.Len(), reducecfg, ClCmdQueue, nil)
+	ClLastEvent = k_reducemaxabs_async(in.DevPtr(0), out, 0,
+		in.Len(), reducecfg, ClCmdQueue[0], tmpEvents)
 
 	copyback(out, &result)
-	if err = ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("failed to wait for queue to finish in maxabs: %+v \n", err)
-	}
 
 	return float32(result)
 }
@@ -122,22 +127,23 @@ func MaxDiff(a, b *data.Slice) []float32 {
 		out[c] = reduceBuf()
 	}
 
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in maxdiff beginning: %+v \n", err)
 		}
 	}
 
+	EmptyLastEvent()
 	for c := 0; c < numComp; c++ {
-		k_reducemaxdiff_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
-			a.Len(), reducecfg, ClCmdQueue, nil)
+		tmpEvent := k_reducemaxdiff_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
+			a.Len(), reducecfg, ClCmdQueue[0], tmpEvents)
+		ClLastEvent = append(ClLastEvent, tmpEvent[0])
 	}
 
 	for c := 0; c < numComp; c++ {
 		copyback(out[c], &results[c])
-	}
-	if err = ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("failed to wait for queue to finish in maxdiff: %+v \n", err)
 	}
 	return results
 }
@@ -152,19 +158,19 @@ func MaxVecNorm(v *data.Slice) float64 {
 
 	out := reduceBuf()
 
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in maxvecnorm beginning: %+v \n", err)
 		}
 	}
 
-	k_reducemaxvecnorm2_async(v.DevPtr(0), v.DevPtr(1), v.DevPtr(2),
-		out, 0, v.Len(), reducecfg, ClCmdQueue, nil)
+	EmptyLastEvent()
+	ClLastEvent = k_reducemaxvecnorm2_async(v.DevPtr(0), v.DevPtr(1), v.DevPtr(2),
+		out, 0, v.Len(), reducecfg, ClCmdQueue[0], tmpEvents)
 
 	copyback(out, &result)
-	if err = ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("failed to wait for queue to finish in maxvecnorm: %+v \n", err)
-	}
 	return math.Sqrt(float64(result))
 }
 
@@ -181,20 +187,23 @@ func MaxVecDiff(x, y *data.Slice) float64 {
 
 	out := reduceBuf()
 
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in maxvecdiff beginning: %+v \n", err)
 		}
 	}
 
-	k_reducemaxvecdiff2_async(x.DevPtr(0), x.DevPtr(1), x.DevPtr(2),
+	ClLastEvent = k_reducemaxvecdiff2_async(x.DevPtr(0), x.DevPtr(1), x.DevPtr(2),
 		y.DevPtr(0), y.DevPtr(1), y.DevPtr(2),
-		out, 0, x.Len(), reducecfg, ClCmdQueue, nil)
+		out, 0, x.Len(), reducecfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		fmt.Printf("failed to flush queue in maxvecdiff: %+v \n", err)
+	}
 
 	copyback(out, &result)
-	if err = ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("failed to wait for queue to finish in maxvecdiff: %+v \n", err)
-	}
 	return math.Sqrt(float64(result))
 }
 
@@ -212,15 +221,24 @@ func reduceBuf() unsafe.Pointer {
 
 // copy back single float result from GPU and recycle buffer
 func copyback(buf unsafe.Pointer, result *float32) {
-	MemCpyDtoH(unsafe.Pointer(result), buf, SIZEOF_FLOAT32)
-	if err := ClCmdQueue.Finish(); err != nil {
-		fmt.Printf("error waiting for queue to finish in copyback: %+v \n", err)
+	var err error
+	var tmpEvent *cl.Event
+
+	if err = cl.WaitForEvents(bufinitevents); err != nil {
+		fmt.Printf("failed to wait for bufinitevents in copyback: %+v \n", err)
 	}
+	MemCpyDtoH(unsafe.Pointer(result), buf, SIZEOF_FLOAT32)
 	numVal := float32(0)
-	_, err := ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(buf), unsafe.Pointer(&numVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil)
-	if err != nil {
+
+	if tmpEvent, err = ClCmdQueue[0].EnqueueFillBuffer((*cl.MemObject)(buf), unsafe.Pointer(&numVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil); err != nil {
 		fmt.Printf("enqueuefillbuffer in copyback failed: %+v \n", err)
 	}
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		fmt.Printf("failed to flush queue in copyback: %+v \n", err)
+	}
+
+	bufinitevents = []*cl.Event{tmpEvent}
 	reduceBuffers <- (*cl.MemObject)(buf)
 }
 
@@ -230,12 +248,17 @@ func initReduceBuf() {
 	reduceBuffers = make(chan *cl.MemObject, N)
 
 	numVal := float32(0)
+	bufinitevents = make([]*cl.Event, N)
 	for i := 0; i < N; i++ {
 		buf := MemAlloc(SIZEOF_FLOAT32)
-		_, err := ClCmdQueue.EnqueueFillBuffer(buf, unsafe.Pointer(&numVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil)
+		tmpEvent, err := ClCmdQueue[0].EnqueueFillBuffer(buf, unsafe.Pointer(&numVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil)
 		if err != nil {
 			fmt.Printf("enqueuefillbuffer failed in initReduceBuf: %+v \n", err)
 		}
+		if err = ClCmdQueue[0].Flush(); err != nil {
+			fmt.Printf("failed to flush queue in copyback: %+v \n", err)
+		}
+		bufinitevents[i] = tmpEvent
 		reduceBuffers <- buf
 	}
 }
@@ -245,3 +268,4 @@ func initReduceBuf() {
 // could be improved but takes hardly ~1% of execution time
 var reducecfg = &config{Grid: []int{1, 1, 1}, Block: []int{1, 1, 1}}
 var ReduceWorkitems int
+var bufinitevents []*cl.Event

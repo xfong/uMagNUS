@@ -15,19 +15,27 @@ func RegionAddV(dst *data.Slice, lut LUTPtrs, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regionaddv: %+v \n", err)
 		}
 	}
 
-	k_regionaddv_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
-		lut[X], lut[Y], lut[Z], regions.Ptr, N, cfg, ClCmdQueue, nil)
+	ClLastEvent = k_regionaddv_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
+		lut[X], lut[Y], lut[Z], regions.Ptr, N, cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in regionaddv: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regionaddv end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -38,19 +46,27 @@ func RegionAddS(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regionadds: %+v \n", err)
 		}
 	}
 
-	k_regionadds_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
-		ClCmdQueue, nil)
+	ClLastEvent = k_regionadds_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in regionadds: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regionadds end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -60,19 +76,27 @@ func RegionDecode(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regiondecode: %+v \n", err)
 		}
 	}
 
-	k_regiondecode_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
-		ClCmdQueue, nil)
+	ClLastEvent = k_regiondecode_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
+		ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in regiondecode: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regiondecode end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -83,20 +107,29 @@ func RegionSelect(dst, src *data.Slice, regions *Bytes, region byte) {
 	cfg := make1DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regionselect: %+v \n", err)
 		}
 	}
 
+	EmptyLastEvent()
 	for c := 0; c < dst.NComp(); c++ {
-		k_regionselect_async(dst.DevPtr(c), src.DevPtr(c), regions.Ptr, region, N, cfg,
-			ClCmdQueue, nil)
+		tmpEvent := k_regionselect_async(dst.DevPtr(c), src.DevPtr(c), regions.Ptr, region, N, cfg,
+			ClCmdQueue[0], tmpEvents)
+		if err = ClCmdQueue[0].Flush(); err != nil {
+			log.Printf("failed to flush queue in regionselect: %+v \n", err)
+		}
+		ClLastEvent = append(ClLastEvent, tmpEvent[0])
 	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in regionselect end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }

@@ -52,7 +52,7 @@ func (c *DemagConvolution) Exec(B, m, vol *data.Slice, Msat MSlice) {
 
 func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err := WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in demagconvolution.exec3d: %+v \n", err)
 		}
 	}
@@ -74,7 +74,7 @@ func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
 
 func (c *DemagConvolution) exec2D(outp, inp, vol *data.Slice, Msat MSlice) {
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err := WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in demagconvolution.exec2d: %+v \n", err)
 		}
 	}
@@ -112,20 +112,29 @@ func zero1_async(dst *data.Slice) {
 	if dst == nil {
 		panic("ERROR (zero1_async): dst pointer cannot be nil")
 	}
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err := WaitLastEvent(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in zero1_async: %+v \n", err)
 		}
 	}
 
-	event, err := ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, nil)
+	event, err := ClCmdQueue[0].EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, tmpEvents)
 	if err != nil {
 		fmt.Printf("EnqueueFillBuffer failed: %+v \n", err)
 	}
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		fmt.Printf("failed to flush queue in zero1_async: %+v \n", err)
+	}
+	ClLastEvent = []*cl.Event{event}
+
 	if Synchronous {
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			fmt.Printf("WaitForEvents failed in zero1_async: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -204,7 +213,7 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 				}
 				data.Copy(kfull, output)
 				// Wait for FFT to complete and copyback to complete
-				if err = ClCmdQueue.Finish(); err != nil {
+				if err = ClCmdQueue[0].Finish(); err != nil {
 					fmt.Printf("error waiting main queue to finish after fft copyback in init: %+v \n ", err)
 				}
 
@@ -220,7 +229,7 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 				// extract real parts (X symmetry)
 				scaleRealParts(fftKern, kCmplx, 1/float32(c.fwPlan.InputLen()))
 				c.kern[i][j] = GPUCopy(fftKern)
-				if err = ClCmdQueue.Finish(); err != nil {
+				if err = ClCmdQueue[0].Finish(); err != nil {
 					fmt.Printf("error waiting main queue to finish after GPUCopy in init: %+v \n ", err)
 				}
 			}

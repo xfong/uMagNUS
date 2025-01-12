@@ -22,24 +22,32 @@ func AddMagnetoelasticField(Beff, m *data.Slice, exx, eyy, ezz, exy, exz, eyz, B
 	cfg := make1DConf(N)
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addmagnetoelasticfield: %+v \n", err)
 		}
 	}
 
-	k_addmagnetoelasticfield_async(Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
+	ClLastEvent = k_addmagnetoelasticfield_async(Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		exx.DevPtr(0), exx.Mul(0), eyy.DevPtr(0), eyy.Mul(0), ezz.DevPtr(0), ezz.Mul(0),
 		exy.DevPtr(0), exy.Mul(0), exz.DevPtr(0), exz.Mul(0), eyz.DevPtr(0), eyz.Mul(0),
 		B1.DevPtr(0), B1.Mul(0), B2.DevPtr(0), B2.Mul(0),
 		Msat.DevPtr(0), Msat.Mul(0),
-		N, cfg, ClCmdQueue, nil)
+		N, cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in addmagnetoelasticfield: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in addmagnetoelasticfield end: %+v \n", err)
 		}
+		EmptyLastEvent()
 	}
 }
 
@@ -57,21 +65,28 @@ func GetMagnetoelasticForceDensity(out, m *data.Slice, B1, B2 MSlice, mesh *data
 	rcsz := float32(1.0 / cellsize[Z])
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in getmagnetoelasticforcedensity: %+v \n", err)
 		}
 	}
 
-	k_getmagnetoelasticforce_async(out.DevPtr(X), out.DevPtr(Y), out.DevPtr(Z),
+	ClLastEvent = k_getmagnetoelasticforce_async(out.DevPtr(X), out.DevPtr(Y), out.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		B1.DevPtr(0), B1.Mul(0), B2.DevPtr(0), B2.Mul(0),
 		rcsx, rcsy, rcsz,
 		N[X], N[Y], N[Z],
-		mesh.PBC_code(), cfg, ClCmdQueue, nil)
+		mesh.PBC_code(), cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in getmagnetoelasticforcedensity: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in getmagnetoelasticforcedensity end: %+v \n", err)
 		}
 	}

@@ -242,7 +242,7 @@ func init(){
 	{{end}} }
 
 // Wrapper for {{.Name}} OpenCL kernel, asynchronous.
-func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{end}} cfg *config, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{end}} cfg *config, queue *cl.CommandQueue, events []*cl.Event) []*cl.Event {
 	if Synchronous{ // debug
 		timer.Start("{{.Name}}")
 	}
@@ -271,7 +271,7 @@ func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{
 		timer.Stop("{{.Name}}")
 	}
 
-	return event
+	return []*cl.Event{event}
 }
 
 `
