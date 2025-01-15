@@ -185,7 +185,7 @@ func Memset(s *data.Slice, val ...float32) {
 	tmpEvents := LastEventToWaitList()
 	ClLastEvent = []*cl.Event{}
 	for c, v := range val {
-		tmpEvent, err := ClCmdQueue[c].EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, tmpEvents)
+		tmpEvent, err = ClCmdQueue[c].EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, tmpEvents)
 		if err != nil {
 			fmt.Printf("EnqueueFillBuffer failed in memset: %+v \n", err)
 		}

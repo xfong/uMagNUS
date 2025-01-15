@@ -38,12 +38,12 @@ func (p *lut) gpuLUT() opencl.LUTPtrs {
 	if !p.gpu_ok {
 		// upload to GPU
 		p.assureAlloc()
-		opencl.ClCmdQueue.Finish() // sync previous kernels, may still be using gpu lut
+		opencl.ClCmdQueue[0].Finish() // sync previous kernels, may still be using gpu lut
 		for c := range p.gpu_buf {
 			opencl.MemCpyHtoD(p.gpu_buf[c], unsafe.Pointer(&p.cpu_buf[c][0]), opencl.SIZEOF_FLOAT32*NREGION)
 		}
 		p.gpu_ok = true
-		opencl.ClCmdQueue.Finish() //sync upload
+		opencl.ClCmdQueue[0].Finish() //sync upload
 	}
 	return p.gpu_buf
 }

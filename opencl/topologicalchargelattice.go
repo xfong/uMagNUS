@@ -16,20 +16,27 @@ func SetTopologicalChargeLattice(s *data.Slice, m *data.Slice, mesh *data.Mesh) 
 	icxcy := float32(1.0 / (cellsize[X] * cellsize[Y]))
 
 	var err error
+
+	tmpEvents := LastEventToWaitList()
+
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in settopologicallatticecharge: %+v \n", err)
 		}
 	}
 
-	k_settopologicalchargelattice_async(
+	ClLastEvent = k_settopologicalchargelattice_async(
 		s.DevPtr(X),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		icxcy, N[X], N[Y], N[Z], mesh.PBC_code(),
-		cfg, ClCmdQueue, nil)
+		cfg, ClCmdQueue[0], tmpEvents)
+
+	if err = ClCmdQueue[0].Flush(); err != nil {
+		log.Printf("failed to flush queue in settopologicallatticecharge: %+v \n", err)
+	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Printf("failed to wait for queue to finish in settopologicallatticecharge end: %+v \n", err)
 		}
 	}
