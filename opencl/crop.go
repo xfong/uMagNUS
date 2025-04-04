@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -15,9 +16,18 @@ func Crop(dst, src *data.Slice, offX, offY, offZ int) {
 
 	cfg := make3DConf(D)
 
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	evtList := make([]*cl.Event, 3)
 	for c := 0; c < dst.NComp(); c++ {
-		k_crop_async(dst.DevPtr(c), D[X], D[Y], D[Z],
+		event := k_crop_async(dst.DevPtr(c), D[X], D[Y], D[Z],
 			src.DevPtr(c), S[X], S[Y], S[Z],
-			offX, offY, offZ, cfg, ClCmdQueue, nil)
+			offX, offY, offZ, cfg, ClCmdQueue, evtWL)
+		evtList[c] = event
 	}
+
+	// set event marker
+	ClLastEvent = evtList
 }

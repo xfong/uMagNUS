@@ -243,9 +243,12 @@ func init(){
 
 // Wrapper for {{.Name}} OpenCL kernel, asynchronous.
 func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{end}} cfg *config, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+	var err error
+	var event *cl.Event
+
 	if Synchronous{ // debug
-		if err := queue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in beginning of {{.Name}}: %+v", err)
+		if err = queue.Finish(); err != nil {
+			fmt.Printf("failed to wait for queue to finish in beginning of {{.Name}}: %+v \n", err)
 		}
 		timer.Start("{{.Name}}")
 	}
@@ -260,11 +263,15 @@ func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{
 	{{end}}
 
 //	args := {{.Name}}_args.argptr[:]
-	event := LaunchKernel("{{.Name}}", cfg.Grid, cfg.Block, queue, events)
+	event = LaunchKernel("{{.Name}}", cfg.Grid, cfg.Block, queue, events) // execute
+
+	if err = queue.Flush(); err != nil {
+		fmt.Printf("flush queue in {{.Name}} failed: %+v \n", err)
+	}
 
 	if Synchronous{ // debug
-		if err := queue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish at end of {{.Name}}: %+v", err)
+		if err = queue.Finish(); err != nil {
+			fmt.Printf("failed to wait for queue to finish at end of {{.Name}}: %+v \n", err)
 		}
 		timer.Stop("{{.Name}}")
 	}

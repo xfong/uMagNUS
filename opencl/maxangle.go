@@ -3,6 +3,7 @@ package opencl
 import (
 	"unsafe"
 
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -13,8 +14,15 @@ func SetMaxAngle(dst, m *data.Slice, Aex_red SymmLUT, regions *Bytes, mesh *data
 	pbc := mesh.PBC_code()
 	cfg := make3DConf(N)
 
-	k_setmaxangle_async(dst.DevPtr(0),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_setmaxangle_async(dst.DevPtr(0),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		unsafe.Pointer(Aex_red), regions.Ptr,
-		N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue, nil)
+		N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

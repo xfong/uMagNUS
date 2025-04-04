@@ -1,7 +1,7 @@
 package opencl
 
 import (
-	"fmt"
+	"log"
 
 	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
@@ -25,38 +25,55 @@ func newFFT3DC2R(Nx, Ny, Nz int) fft3DC2RPlan {
 // Execute the FFT plan, asynchronous.
 // src and dst are 3D arrays stored 1D arrays.
 func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
+	var err error
+	var event *cl.Event
 
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in beginning of fft3dc2rplan.execasync", err)
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in beginning of fft3dc2rplan.execasync", err)
 		}
-		timer.Start("fft")
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			log.Printf("failed to wait for last event in beginning of fft3dc2r.execasync: %+v \n", err)
+		}
+		timer.Start("bwfft")
 	}
 
 	oksrclen := p.InputLenFloats()
 	if src.Len() != oksrclen {
-		panic(fmt.Errorf("fft size mismatch: expecting src len %v, got %v", oksrclen, src.Len()))
+		log.Panicf("fft size mismatch: expecting src len %v, got %v", oksrclen, src.Len())
 	}
 	okdstlen := p.OutputLenFloats()
 	if dst.Len() != okdstlen {
-		panic(fmt.Errorf("fft size mismatch: expecting dst len %v, got %v", okdstlen, dst.Len()))
+		log.Panicf("fft size mismatch: expecting dst len %v, got %v", okdstlen, dst.Len())
 	}
 	tmpPtr := src.DevPtr(0)
 	srcMemObj := *(*cl.MemObject)(tmpPtr)
 	tmpPtr = dst.DevPtr(0)
 	dstMemObj := *(*cl.MemObject)(tmpPtr)
 
-	err := p.handle.EnqueueBackwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj})
+	// sequence command according to queue
+	if event, err = ClCmdQueue.EnqueueMarkerWithWaitList(ClLastEvent); err != nil {
+		log.Panicf("failed to enqueue barrier in fft3dc2r.execasync: %+v \n", err)
+	}
+	ClLastEvent = []*cl.Event{event}
+	p.handle.SetQueueEvent(ClLastEvent[0])
 
-	if err != nil {
-		fmt.Printf("Failed to enqueue bwFFT: %+v \n", err)
+	// execute
+	if err = p.handle.EnqueueBackwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj}); err != nil {
+		log.Printf("Failed to enqueue bwFFT: %+v \n", err)
 	}
 
+	// set event marker
+	event = p.handle.GetQueueEvent()
+	ClLastEvent = []*cl.Event{event}
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish at end of fft3dc2rplan.execasync", err)
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish at end of fft3dc2r.execasync", err)
 		}
-		timer.Stop("fft")
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			log.Panicf("failed to wait for last event in fft3dc2r.execasync: %+v \n", err)
+		}
+		timer.Stop("bwfft")
 	}
 
 	return err

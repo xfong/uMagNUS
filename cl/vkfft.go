@@ -282,6 +282,10 @@ func (plan *VkfftPlan) GetQueueEvent() *Event {
 	return ev
 }
 
+func (plan *VkfftPlan) SetQueueEvent(e *Event) {
+	C.vkfftSetPlanEvent(plan.GetPlanPointer(), e.clEvent)
+}
+
 func (plan *VkfftPlan) GetCommandQueue() *CommandQueue {
 	queue := new(CommandQueue)
 	dev := new(Device)

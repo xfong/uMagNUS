@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -19,13 +20,20 @@ func AddMagnetoelasticField(Beff, m *data.Slice, exx, eyy, ezz, exy, exz, eyz, B
 	N := Beff.Len()
 	cfg := make1DConf(N)
 
-	k_addmagnetoelasticfield_async(Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_addmagnetoelasticfield_async(Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		exx.DevPtr(0), exx.Mul(0), eyy.DevPtr(0), eyy.Mul(0), ezz.DevPtr(0), ezz.Mul(0),
 		exy.DevPtr(0), exy.Mul(0), exz.DevPtr(0), exz.Mul(0), eyz.DevPtr(0), eyz.Mul(0),
 		B1.DevPtr(0), B1.Mul(0), B2.DevPtr(0), B2.Mul(0),
 		Msat.DevPtr(0), Msat.Mul(0),
-		N, cfg, ClCmdQueue, nil)
+		N, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }
 
 // Calculate magneto-elasticit force density
@@ -41,10 +49,17 @@ func GetMagnetoelasticForceDensity(out, m *data.Slice, B1, B2 MSlice, mesh *data
 	rcsy := float32(1.0 / cellsize[Y])
 	rcsz := float32(1.0 / cellsize[Z])
 
-	k_getmagnetoelasticforce_async(out.DevPtr(X), out.DevPtr(Y), out.DevPtr(Z),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_getmagnetoelasticforce_async(out.DevPtr(X), out.DevPtr(Y), out.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		B1.DevPtr(0), B1.Mul(0), B2.DevPtr(0), B2.Mul(0),
 		rcsx, rcsy, rcsz,
 		N[X], N[Y], N[Z],
-		mesh.PBC_code(), cfg, ClCmdQueue, nil)
+		mesh.PBC_code(), cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

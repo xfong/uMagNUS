@@ -302,6 +302,10 @@ cl_event vkfftGetPlanEvent(interfaceFFTPlan* plan) {
     return plan->app->configuration.queueEvent;
 }
 
+void vkfftSetPlanEvent(interfaceFFTPlan* plan, cl_event ev) {
+    plan->app->configuration.queueEvent = ev;
+}
+
 cl_command_queue vkfftPlanGetCommandQueue(interfaceFFTPlan* plan) {
     return plan->commandQueue;
 }

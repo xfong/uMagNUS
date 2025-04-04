@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -13,10 +14,17 @@ func SetTemperature(Bth, noise *data.Slice, k2mu0_Mu0VgammaDt float64, Msat, Tem
 	N := Bth.Len()
 	cfg := make1DConf(N)
 
-	k_settemperature2_async(Bth.DevPtr(0), noise.DevPtr(0), float32(k2mu0_Mu0VgammaDt),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_settemperature2_async(Bth.DevPtr(0), noise.DevPtr(0), float32(k2mu0_Mu0VgammaDt),
 		Msat.DevPtr(0), Msat.Mul(0),
 		Temp.DevPtr(0), Temp.Mul(0),
 		Alpha.DevPtr(0), Alpha.Mul(0),
 		N, cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

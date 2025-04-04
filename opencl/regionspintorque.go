@@ -5,6 +5,7 @@ package opencl
 import (
 	"math"
 
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -23,11 +24,18 @@ func AddRegionSpinTorque(torque, m *data.Slice, Msat MSlice, regions *Bytes, reg
 	N := mesh.Size()
 	cfg := make3DConf(N)
 
-	k_addtworegionoommfslonczewskitorque_async(torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_addtworegionoommfslonczewskitorque_async(torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, N[X], N[Y], N[Z],
 		J, alpha, pfix, pfree, λfix, λfree, ε_prime, float32(cellwgt),
-		cfg, ClCmdQueue, nil)
+		cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

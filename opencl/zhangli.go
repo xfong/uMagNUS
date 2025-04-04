@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -11,7 +12,11 @@ func AddZhangLiTorque(torque, m *data.Slice, Msat, J, alpha, xi, pol MSlice, mes
 	N := mesh.Size()
 	cfg := make3DConf(N)
 
-	k_addzhanglitorque2_async(
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_addzhanglitorque2_async(
 		torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
@@ -23,5 +28,8 @@ func AddZhangLiTorque(torque, m *data.Slice, Msat, J, alpha, xi, pol MSlice, mes
 		pol.DevPtr(0), pol.Mul(0),
 		float32(c[X]), float32(c[Y]), float32(c[Z]),
 		N[X], N[Y], N[Z], mesh.PBC_code(), cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

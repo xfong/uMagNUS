@@ -3,6 +3,7 @@ package opencl
 import (
 	"unsafe"
 
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -22,11 +23,18 @@ func AddExchange(B, m *data.Slice, Aex_red SymmLUT, Msat MSlice, regions *Bytes,
 	pbc := mesh.PBC_code()
 	cfg := make3DConf(N)
 
-	k_addexchange_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_addexchange_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		unsafe.Pointer(Aex_red), regions.Ptr,
-		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue, nil)
+		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }
 
 // Finds the average exchange strength around each cell, for debugging.
@@ -39,7 +47,14 @@ func ExchangeDecode(dst *data.Slice, Aex_red SymmLUT, regions *Bytes, mesh *data
 	pbc := mesh.PBC_code()
 	cfg := make3DConf(N)
 
-	k_exchangedecode_async(dst.DevPtr(0), unsafe.Pointer(Aex_red), regions.Ptr,
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_exchangedecode_async(dst.DevPtr(0), unsafe.Pointer(Aex_red), regions.Ptr,
 		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

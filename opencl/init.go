@@ -32,6 +32,7 @@ var (
 	ClDevice     *cl.Device                // device associated with global OpenCL context
 	ClCtx        *cl.Context               // global OpenCL context
 	ClCmdQueue   *cl.CommandQueue          // command queues attached to global OpenCL context
+	ClLastEvent  []*cl.Event               // event for the latest device command that was enqueued (should never be nil)
 	ClProgram    *cl.Program               // handle to program in the global OpenCL context
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 	initialized  = false                   // Initial state defaults to false
@@ -283,6 +284,11 @@ func Init(gpu int) {
 		fmt.Printf("    ClTotalPE = %+v \n", ClTotalPE)
 		fmt.Printf("    ClMaxWGSize = %+v ; ClMaxWGNum = %+v \n", ClMaxWGSize, ClMaxWGNum)
 		fmt.Printf("    ClPrefWGSz = %+v \n", ClPrefWGSz)
+	}
+
+	ClLastEvent = make([]*cl.Event, 1)
+	if ClLastEvent[0], err = ClCmdQueue.EnqueueMarkerWithWaitList(nil); err != nil {
+		fmt.Printf("failed to enqueue marker in init: $+v \n", err)
 	}
 
 	data.EnableGPU(memFree, memFree, MemCpy, MemCpyDtoH, MemCpyHtoD)

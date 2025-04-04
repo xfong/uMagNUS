@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -11,6 +12,13 @@ func Normalize(vec, vol *data.Slice) {
 	N := vec.Len()
 	cfg := make1DConf(N)
 
-	k_normalize2_async(vec.DevPtr(X), vec.DevPtr(Y), vec.DevPtr(Z),
-		vol.DevPtr(0), N, cfg, ClCmdQueue, nil)
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_normalize2_async(vec.DevPtr(X), vec.DevPtr(Y), vec.DevPtr(Z),
+		vol.DevPtr(0), N, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

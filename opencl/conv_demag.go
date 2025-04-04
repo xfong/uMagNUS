@@ -51,9 +51,14 @@ func (c *DemagConvolution) Exec(B, m, vol *data.Slice, Msat MSlice) {
 }
 
 func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
+	var err error
+
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err = ClCmdQueue.Finish(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in demagconvolution.exec3d: %+v \n", err)
+		}
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			fmt.Printf("failed to wait for last event in demagconvolution.exec3d: %+v \n", err)
 		}
 	}
 
@@ -73,7 +78,12 @@ func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
 }
 
 func (c *DemagConvolution) exec2D(outp, inp, vol *data.Slice, Msat MSlice) {
+	var err error
+
 	if Synchronous {
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			fmt.Printf("failed to wait for last event in demagconvolution.exec2d: %+v \n", err)
+		}
 		if err := ClCmdQueue.Finish(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in demagconvolution.exec2d: %+v \n", err)
 		}
@@ -108,22 +118,35 @@ func (c *DemagConvolution) is2D() bool {
 
 // zero 1-component slice
 func zero1_async(dst *data.Slice) {
+	var err error
+	var event *cl.Event
+
 	val := float32(0.0)
 	if dst == nil {
 		panic("ERROR (zero1_async): dst pointer cannot be nil")
 	}
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err = ClCmdQueue.Finish(); err != nil {
 			fmt.Printf("failed to wait for queue to finish in zero1_async: %+v \n", err)
+		}
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			fmt.Printf("failed to wait for last event in zero1_async: %+v \n", err)
 		}
 	}
 
-	event, err := ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, nil)
-	if err != nil {
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	if event, err = ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
 		fmt.Printf("EnqueueFillBuffer failed: %+v \n", err)
 	}
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
+
 	if Synchronous {
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
 			fmt.Printf("WaitForEvents failed in zero1_async: %+v \n", err)
 		}
 	}

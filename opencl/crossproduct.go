@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -12,8 +13,15 @@ func CrossProduct(dst, a, b *data.Slice) {
 	N := dst.Len()
 	cfg := make1DConf(N)
 
-	k_crossproduct_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_crossproduct_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
 		a.DevPtr(X), a.DevPtr(Y), a.DevPtr(Z),
 		b.DevPtr(X), b.DevPtr(Y), b.DevPtr(Z),
-		N, cfg, ClCmdQueue, nil)
+		N, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

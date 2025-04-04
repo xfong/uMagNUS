@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -13,8 +14,15 @@ func AddDotProduct(dst *data.Slice, prefactor float32, a, b *data.Slice) {
 	N := dst.Len()
 	cfg := make1DConf(N)
 
-	k_dotproduct_async(dst.DevPtr(0), prefactor,
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_dotproduct_async(dst.DevPtr(0), prefactor,
 		a.DevPtr(X), a.DevPtr(Y), a.DevPtr(Z),
 		b.DevPtr(X), b.DevPtr(Y), b.DevPtr(Z),
-		N, cfg, ClCmdQueue, nil)
+		N, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

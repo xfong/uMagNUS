@@ -26,12 +26,17 @@ func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 // Execute the FFT plan, asynchronous.
 // src and dst are 3D arrays stored 1D arrays.
 func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
+	var err error
+	var event *cl.Event
 
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
-			log.Panicf("failed to wait for queue to finish in beginning of fft3dr2c.execasync: %+v \n", err)
+		if err = ClCmdQueue.Finish(); err != nil {
+			log.Printf("failed to wait for queue to finish in beginning of fft3dr2c.execasync: %+v \n", err)
 		}
-		timer.Start("fft")
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			log.Printf("failed to wait for last event in beginning of fft3dr2c.execasync: %+v \n", err)
+		}
+		timer.Start("fwfft")
 	}
 
 	util.Argument(src.NComp() == 1 && dst.NComp() == 1)
@@ -48,17 +53,29 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	tmpPtr = dst.DevPtr(0)
 	dstMemObj := *(*cl.MemObject)(tmpPtr)
 
-	err := p.handle.EnqueueForwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj})
+	// sequence command according to queue
+	if event, err = ClCmdQueue.EnqueueMarkerWithWaitList(ClLastEvent); err != nil {
+		log.Panicf("failed to enqueue barrier in fft3dr2c.execasync: %+v \n", err)
+	}
+	ClLastEvent = []*cl.Event{event}
+	p.handle.SetQueueEvent(ClLastEvent[0])
 
-	if err != nil {
+	// execute
+	if err = p.handle.EnqueueForwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj}); err != nil {
 		log.Printf("Failed to enqueue fwFFT: %+v \n", err)
 	}
 
+	// set event marker
+	event = p.handle.GetQueueEvent()
+	ClLastEvent = []*cl.Event{event}
 	if Synchronous {
-		if err := ClCmdQueue.Finish(); err != nil {
+		if err = ClCmdQueue.Finish(); err != nil {
 			log.Panicf("failed to wait for queue to finish at end of fft3dr2c.execasync: %+v \n", err)
 		}
-		timer.Stop("fft")
+		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+			log.Panicf("failed to wait for last event in fft3dr2c.execasync: %+v \n", err)
+		}
+		timer.Stop("fwfft")
 	}
 
 	return err

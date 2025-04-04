@@ -5,6 +5,7 @@ package opencl
 import (
 	"math"
 
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -30,12 +31,19 @@ func AddRegionExchangeField(B, m *data.Slice, Msat MSlice, regions *Bytes, regio
 	sig_eff := sig * float32(cellwgt)
 	sig2_eff := sig2 * float32(cellwgt)
 
-	k_tworegionexchange_field_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_tworegionexchange_field_async(B.DevPtr(X), B.DevPtr(Y), B.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, sig_eff, sig2_eff, N[X], N[Y], N[Z], cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }
 
 func AddRegionExchangeEdens(Edens, m *data.Slice, Msat MSlice, regions *Bytes, regionA, regionB uint8, sX, sY, sZ int, sig, sig2 float32, mesh *data.Mesh) {
@@ -56,10 +64,17 @@ func AddRegionExchangeEdens(Edens, m *data.Slice, Msat MSlice, regions *Bytes, r
 	sig_eff := sig * float32(cellwgt)
 	sig2_eff := sig2 * float32(cellwgt)
 
-	k_tworegionexchange_edens_async(Edens.DevPtr(0),
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_tworegionexchange_edens_async(Edens.DevPtr(0),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, sig_eff, sig2_eff, N[X], N[Y], N[Z], cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

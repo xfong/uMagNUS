@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -11,7 +12,11 @@ func AddSlonczewskiTorque2(torque, m *data.Slice, Msat, J, fixedP, alpha, pol, Î
 	cfg := make1DConf(N)
 	meshThickness := mesh.WorldSize()[Z]
 
-	k_addslonczewskitorque2_async(
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_addslonczewskitorque2_async(
 		torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
@@ -26,5 +31,8 @@ func AddSlonczewskiTorque2(torque, m *data.Slice, Msat, J, fixedP, alpha, pol, Î
 		thickness.DevPtr(0), thickness.Mul(0),
 		float32(meshThickness),
 		float32(flp),
-		N, cfg, ClCmdQueue, nil)
+		N, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

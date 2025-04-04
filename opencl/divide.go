@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -13,8 +14,16 @@ func Divide(dst, a, b *data.Slice) {
 	util.Assert(a.Len() == N && a.NComp() == nComp && b.Len() == N && b.NComp() == nComp)
 	cfg := make1DConf(N)
 
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	evtList := make([]*cl.Event, 3)
 	for c := 0; c < nComp; c++ {
-		k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
-			ClCmdQueue, nil)
+		evtList[c] = k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
+			ClCmdQueue, evtWL)
 	}
+
+	// set event marker
+	ClLastEvent = evtList
 }

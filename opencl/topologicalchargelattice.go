@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -13,9 +14,16 @@ func SetTopologicalChargeLattice(s *data.Slice, m *data.Slice, mesh *data.Mesh) 
 	cfg := make3DConf(N)
 	icxcy := float32(1.0 / (cellsize[X] * cellsize[Y]))
 
-	k_settopologicalchargelattice_async(
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_settopologicalchargelattice_async(
 		s.DevPtr(X),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		icxcy, N[X], N[Y], N[Z], mesh.PBC_code(),
-		cfg, ClCmdQueue, nil)
+		cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

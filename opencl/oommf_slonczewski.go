@@ -3,6 +3,7 @@ package opencl
 import (
 	"unsafe"
 
+	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -12,7 +13,11 @@ func AddOommfSlonczewskiTorque(torque, m *data.Slice, Msat, J, fixedP, alpha, pf
 	cfg := make1DConf(N)
 	flt := float32(mesh.WorldSize()[Z])
 
-	k_addoommfslonczewskitorque_async(
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
+	event := k_addoommfslonczewskitorque_async(
 		torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		Msat.DevPtr(0), Msat.Mul(0),
@@ -27,5 +32,8 @@ func AddOommfSlonczewskiTorque(torque, m *data.Slice, Msat, J, fixedP, alpha, pf
 		λfree.DevPtr(0), λfree.Mul(0),
 		ε_prime.DevPtr(0), ε_prime.Mul(0),
 		unsafe.Pointer(uintptr(0)), flt,
-		N, cfg, ClCmdQueue, nil)
+		N, cfg, ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 }

@@ -21,12 +21,19 @@ func Resize(dst, src *data.Slice, layer int) {
 
 	cfg := make3DConf(dstsize)
 
+	// sequence command according to queue
+	evtWL := ClLastEvent
+
+	// execute
 	event := k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
 		src.DevPtr(0), srcsize[X], srcsize[Y], srcsize[Z], layer, scalex, scaley, cfg,
-		ClCmdQueue, nil)
+		ClCmdQueue, evtWL)
+
+	// set event marker
+	ClLastEvent = []*cl.Event{event}
 
 	if Synchronous {
-		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err := cl.WaitForEvents(ClLastEvent); err != nil {
 			fmt.Printf("WaitForEvents failed in resize: %+v \n", err)
 		}
 	}
