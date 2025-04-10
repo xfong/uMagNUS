@@ -26,14 +26,16 @@ var (
 	GPUList      []GPU                     // List of GPUs available
 	Synchronous  bool                      // for debug: synchronize command queue at every kernel launch
 	Debug        = false                   // for debug: synchronize command queue after every kernel launch
-	ClPlatforms  []*cl.Platform            // list of platforms available
-	ClPlatform   *cl.Platform              // platform the global OpenCL context is attached to
-	ClDevices    []*cl.Device              // list of devices global OpenCL context may be associated with
-	ClDevice     *cl.Device                // device associated with global OpenCL context
-	ClCtx        *cl.Context               // global OpenCL context
-	ClCmdQueue   *cl.CommandQueue          // command queues attached to global OpenCL context
-	ClLastEvent  []*cl.Event               // event for the latest device command that was enqueued (should never be nil)
-	ClProgram    *cl.Program               // handle to program in the global OpenCL context
+	ClPlatforms  = []*cl.Platform{}        // list of platforms available
+	ClPlatform   = (*cl.Platform)(nil)     // platform the global OpenCL context is attached to
+	ClDevices    = []*cl.Device{}          // list of devices global OpenCL context may be associated with
+	ClDevice     = (*cl.Device)(nil)       // device associated with global OpenCL context
+	ClCtx        = (*cl.Context)(nil)      // global OpenCL context
+	ClCmdQueue   = (*cl.CommandQueue)(nil) // command queues attached to global OpenCL context (needed??)
+	ClLastEvent  = []*cl.Event{}           // event for the latest device command that was enqueued (should never be nil)
+	ClLastMarker = (*cl.Event)(nil)        // latest enqueued event in the order of queue
+	ClInitMarker = (*cl.Event)(nil)        // first event enqueued and completed
+	ClProgram    = (*cl.Program)(nil)      // handle to program in the global OpenCL context
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 	initialized  = false                   // Initial state defaults to false
 	ClCUnits     int                       // Get number of compute units available
@@ -47,10 +49,6 @@ var (
 
 // Locks to an OS thread and initializes CUDA for that thread.
 func Init(gpu int) {
-	defer func() {
-		initialized = true
-	}()
-
 	selection := int(0)
 
 	if initialized {
@@ -141,13 +139,19 @@ func Init(gpu int) {
 		return
 	}
 
-	// Create opencl command queues on selected device
+	// update global variable
+	ClCtx = context
+
+	// Create opencl command queues on selected device (needed??)
 	var queue *cl.CommandQueue
-	queue, err = context.CreateCommandQueue(ClDevice, 0)
+	queue, err = CreateCommandQueue()
 	if err != nil {
 		fmt.Printf("CreateCommandQueue failed: %+v \n", err)
 		return
 	}
+
+	// update global variable
+	ClCmdQueue = queue // (needed??)
 
 	// Create opencl program on selected opencl device
 	var program *cl.Program
@@ -193,6 +197,9 @@ func Init(gpu int) {
 		}
 	}
 
+	// update global variables
+	ClProgram = program
+
 	// Attempt to build list of kernels in opencl program
 	completed := bool(true)
 	if kernelsString, errK := program.GetKernelNames(); errK == nil {
@@ -212,10 +219,6 @@ func Init(gpu int) {
 		fmt.Println("Unable to completely build map of kernels!")
 		return
 	}
-
-	ClCtx = context
-	ClCmdQueue = queue
-	ClProgram = program
 
 	// Set basic configuration for distributing
 	// work-items across compute units
@@ -286,12 +289,12 @@ func Init(gpu int) {
 		fmt.Printf("    ClPrefWGSz = %+v \n", ClPrefWGSz)
 	}
 
-	ClLastEvent = make([]*cl.Event, 1)
-	if ClLastEvent[0], err = ClCmdQueue.EnqueueMarkerWithWaitList(nil); err != nil {
-		fmt.Printf("failed to enqueue marker in init: $+v \n", err)
-	}
+	// initialize events for sequencing operations
+	InitMarkers()
 
 	data.EnableGPU(memFree, memFree, MemCpy, MemCpyDtoH, MemCpyHtoD)
+
+	initialized = true
 
 }
 
@@ -304,7 +307,6 @@ func (s *GPU) getGpuPlatform() *cl.Platform {
 }
 
 func ReleaseAndClean() {
-	ClCmdQueue.Release()
 	ClProgram.Release()
 	ClCtx.Release()
 }

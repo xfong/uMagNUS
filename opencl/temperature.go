@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -23,8 +22,9 @@ func SetTemperature(Bth, noise *data.Slice, k2mu0_Mu0VgammaDt float64, Msat, Tem
 		Temp.DevPtr(0), Temp.Mul(0),
 		Alpha.DevPtr(0), Alpha.Mul(0),
 		N, cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

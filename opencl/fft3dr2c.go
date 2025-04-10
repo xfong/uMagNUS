@@ -17,7 +17,12 @@ type fft3DR2CPlan struct {
 
 // 3D single-precision real-to-complex FFT plan.
 func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
-	handle := cl.NewVkFFTPlan(ClCtx, ClCmdQueue)
+	var err error
+	var queue *cl.CommandQueue
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panicf("failed to create command queue in newFFT3DR2C: %+v \n", err)
+	}
+	handle := cl.NewVkFFTPlan(ClCtx, queue)
 	handle.VkFFTSetFFTPlanSize([]int{Nx, Ny, Nz})
 
 	return fft3DR2CPlan{fftplan{handle}, [3]int{Nx, Ny, Nz}}
@@ -28,13 +33,11 @@ func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in beginning of fft3dr2c.execasync: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Printf("failed to wait for last event in beginning of fft3dr2c.execasync: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Printf("failed to wait for last marker in beginning of fft3dr2c.execasync: %+v \n", err)
 		}
 		timer.Start("fwfft")
 	}
@@ -54,25 +57,33 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	dstMemObj := *(*cl.MemObject)(tmpPtr)
 
 	// sequence command according to queue
-	if event, err = ClCmdQueue.EnqueueMarkerWithWaitList(ClLastEvent); err != nil {
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panicf("failed to create command queue in fft3dr2c.execasync: %+v \n", err)
+	}
+	if event, err = queue.EnqueueMarkerWithWaitList(ClLastEvent); err != nil {
 		log.Panicf("failed to enqueue barrier in fft3dr2c.execasync: %+v \n", err)
 	}
-	ClLastEvent = []*cl.Event{event}
-	p.handle.SetQueueEvent(ClLastEvent[0])
+
+	if err = queue.Release(); err != nil { // implicit flush
+		fmt.Printf("failed to release queue in fft3dr2c.execasync: %+v \n", err)
+	}
+
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
+	p.handle.SetQueueEvent(event)
 
 	// execute
 	if err = p.handle.EnqueueForwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj}); err != nil {
 		log.Printf("Failed to enqueue fwFFT: %+v \n", err)
 	}
 
-	// set event marker
+	// set event markers
 	event = p.handle.GetQueueEvent()
-	ClLastEvent = []*cl.Event{event}
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			log.Panicf("failed to wait for queue to finish at end of fft3dr2c.execasync: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
+		if err = WaitLastEvent(); err != nil {
 			log.Panicf("failed to wait for last event in fft3dr2c.execasync: %+v \n", err)
 		}
 		timer.Stop("fwfft")

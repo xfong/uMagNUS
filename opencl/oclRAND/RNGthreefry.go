@@ -9,7 +9,13 @@ import (
 	"math/rand"
 )
 
-func (p *THREEFRY_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Event {
+	var err error
+	var seed_buf *cl.MemObject
+	var seed_event *cl.Event
+	var event *cl.Event
+	var queue *cl.CommandQueue
+
 	// Generate random seed array to seed the PRNG
 	rand.Seed((int64)(seed))
 	totalCount := p.GetStatusSize()
@@ -24,34 +30,47 @@ func (p *THREEFRY_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, ev
 
 	// copy random seed array to GPU
 	context := p.GetContext()
-	seed_buf, err := context.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(seed_arr[0]))*totalCount, nil)
+	seed_buf, err = context.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(seed_arr[0]))*totalCount, nil)
 	defer seed_buf.Release()
 	if err != nil {
 		log.Fatalln("failed to create buffer for threefry seed array!")
 	}
-	var seed_event *cl.Event
-	seed_event, err = queue.EnqueueWriteBuffer(seed_buf, false, 0, int(unsafe.Sizeof(seed_arr[0]))*totalCount, unsafe.Pointer(&seed_arr[0]), events)
-	if err != nil {
+
+	if Synchronous { // debug
+		if err = cl.WaitForEvents(events); err != nil {
+			log.Printf("failed to wait for last marker in beginning of threefry.init: %+v \n", err)
+		}
+		timer.Start("threefry_init")
+	}
+
+	// create command queue and execute
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panicf("failed to create command queue in threefry.init: %+v \n", err)
+	}
+	if seed_event, err = queue.EnqueueWriteBuffer(seed_buf, false, 0, int(unsafe.Sizeof(seed_arr[0]))*totalCount, unsafe.Pointer(&seed_arr[0]), events); err != nil {
 		log.Fatalln("failed to write seed buffer to device in threefry.init: %+v \n", err)
 	}
-	if err = queue.Flush(); err != nil {
-		log.Printf("flush queue in threefry.init failed: %+v \n", err)
-	}
+
+	queue.Release() // implicit flush
 
 	// seed the RNG
-	event := k_threefry_seed_async(unsafe.Pointer(p.Status_key), unsafe.Pointer(p.Status_counter),
+	event = k_threefry_seed_async(unsafe.Pointer(p.Status_key), unsafe.Pointer(p.Status_counter),
 		unsafe.Pointer(p.Status_result), unsafe.Pointer(p.Status_tracker), unsafe.Pointer(seed_buf),
-		&config{[]int{totalCount}, []int{p.GetGroupSize()}}, queue, []*cl.Event{seed_event})
+		&config{[]int{totalCount}, []int{p.GetGroupSize()}}, []*cl.Event{seed_event})
+
+	if Synchronous { // debug
+		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			log.Printf("failed to wait for last marker in threefry.init: %+v \n", err)
+		}
+		timer.Stop("threefry_init")
+	}
 
 	p.Ini = true
-	if err = queue.Flush(); err != nil {
-		log.Printf("second flush queue in threefry.init failed: %+v \n", err)
-	}
 
 	return event
 }
 
-func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
 	var err error
 
 	if p.Ini == false {
@@ -59,11 +78,8 @@ func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_
 	}
 
 	if Synchronous { // debug
-		if err = queue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in beginning of threefry.generateuniform: %+v \n", err)
-		}
 		if err = cl.WaitForEvents(events); err != nil {
-			log.Printf("wait for events in threefry.generateuniform failed: %+v \n", err)
+			log.Printf("failed to wait for last marker in beginning of threefry.generateuniform: %+v \n", err)
 		}
 		timer.Start("threefry_uniform")
 	}
@@ -71,15 +87,11 @@ func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_
 	// execute
 	event := k_threefry_uniform_async(unsafe.Pointer(p.Status_key), unsafe.Pointer(p.Status_counter),
 		unsafe.Pointer(p.Status_result), unsafe.Pointer(p.Status_tracker), d_data, data_size,
-		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, queue, events)
-
-	if err = queue.Flush(); err != nil {
-		log.Printf("flush queue in threefry.generateuniform failed: %+v \n", err)
-	}
+		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
-			log.Printf("failed to wait for event at end of threefry.generateuniform: %+v \n", err)
+		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			log.Printf("failed to wait for last marker at end of threefry.generateuniform: %+v \n", err)
 		}
 		timer.Stop("threefry_uniform")
 	}
@@ -87,7 +99,7 @@ func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_
 	return event
 }
 
-func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
 	var err error
 
 	if p.Ini == false {
@@ -95,9 +107,6 @@ func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_s
 	}
 
 	if Synchronous { // debug
-		if err = queue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in beginning of threefry.generatenormal: %+v \n", err)
-		}
 		if err = cl.WaitForEvents(events); err != nil {
 			log.Printf("wait for events in threefry.generatenormal failed: %+v \n", err)
 		}
@@ -107,14 +116,10 @@ func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_s
 	// execute
 	event := k_threefry_normal_async(unsafe.Pointer(p.Status_key), unsafe.Pointer(p.Status_counter),
 		unsafe.Pointer(p.Status_result), unsafe.Pointer(p.Status_tracker), d_data, data_size,
-		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, queue, events)
-
-	if err = queue.Flush(); err != nil {
-		log.Printf("flush queue in threefry.generatenormal failed: %+v \n", err)
-	}
+		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
 			log.Printf("failed to wait for event in threefry.generatenormal: %+v \n", err)
 		}
 		timer.Stop("threefry_normal")

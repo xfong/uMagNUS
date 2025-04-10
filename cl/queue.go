@@ -50,28 +50,28 @@ type CommandQueue struct {
 type CLCommandQueueProperties C.cl_command_queue_properties
 
 //////////////// Basic Functions ////////////////
-func retainCommandQueue(q *CommandQueue) {
+func retainCommandQueue(q *CommandQueue) error {
 	if q.clQueue != nil {
-		C.clRetainCommandQueue(q.clQueue)
+		return toError(C.clRetainCommandQueue(q.clQueue))
 	}
 }
 
-func releaseCommandQueue(q *CommandQueue) {
+func releaseCommandQueue(q *CommandQueue) error {
 	if q.clQueue != nil {
-		C.clReleaseCommandQueue(q.clQueue)
 		q.clQueue = nil
+		return toError(C.clReleaseCommandQueue(q.clQueue))
 	}
 }
 
 //////////////// Abstract Functions ////////////////
 // Call clRetainCommandQueue on the CommandQueue.
-func (q *CommandQueue) Retain() {
-	retainCommandQueue(q)
+func (q *CommandQueue) Retain() error {
+	return retainCommandQueue(q)
 }
 
 // Call clReleaseCommandQueue on the CommandQueue. Using the CommandQueue after Release will cause a panick.
-func (q *CommandQueue) Release() {
-	releaseCommandQueue(q)
+func (q *CommandQueue) Release() error {
+	return releaseCommandQueue(q)
 }
 
 // Blocks until all previously queued OpenCL commands in a command-queue are issued to the associated device and have completed.

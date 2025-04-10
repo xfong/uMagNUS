@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -31,8 +30,9 @@ func AddSlonczewskiTorque2(torque, m *data.Slice, Msat, J, fixedP, alpha, pol, Î
 		thickness.DevPtr(0), thickness.Mul(0),
 		float32(meshThickness),
 		float32(flp),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

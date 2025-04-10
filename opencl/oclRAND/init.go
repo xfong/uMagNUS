@@ -12,28 +12,42 @@ type config struct {
 
 var (
 	Synchronous bool
-	ClCmdQueue  *cl.CommandQueue
+	clCtx       = (*cl.Context)(nil)
+	clDevice    = (*cl.Device)(nil)
 	KernList    = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 )
 
-func Init(q *cl.CommandQueue, synch bool, kList map[string]*cl.Kernel) {
+func Init(ctx *cl.Context, dev *cl.Device, synch bool, kList map[string]*cl.Kernel) {
 	Synchronous = synch
-	ClCmdQueue = q
+	clCtx = ctx
+	clDevice = dev
 	KernList = kList
 }
 
-func LaunchKernel(kernname string, gridDim, workDim []int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *cl.Event {
+	var err error
+	var event *cl.Event
+	var queue *cl.CommandQueue
+
 	if KernList[kernname] == nil {
 		log.Panic("Kernel " + kernname + " does not exist!")
 		return nil
 	}
-	KernEvent, err := queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events)
-	if err != nil {
+
+	// get command queue
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panicf("failed to create command queue in oclrng.launchkernel: %+v \n", err)
+	}
+
+	// execute
+	if event, err = queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events); err != nil {
 		log.Fatal(err)
 		return nil
-	} else {
-		return KernEvent
 	}
+
+	queue.Release() // implicit flush
+
+	return event
 }
 
 func SetKernelArgWrapper(kernname string, index int, arg interface{}) {
@@ -65,4 +79,16 @@ func SetKernelArgWrapper(kernname string, index int, arg interface{}) {
 			log.Fatal(err)
 		}
 	}
+}
+
+func CreateCommandQueue() (*cl.CommandQueue, error) {
+	if clCtx == nil {
+		log.Panicf("clCtx (context) cannot be nil! \n")
+		return nil, nil
+	}
+	if clDevice == nil {
+		log.Panicf("clDevice (device) cannot be nil! \n")
+		return nil, nil
+	}
+	return clCtx.CreateCommandQueue(clDevice, 0)
 }

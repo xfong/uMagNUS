@@ -19,10 +19,11 @@ func RegionAddV(dst *data.Slice, lut LUTPtrs, regions *Bytes) {
 
 	// execute
 	event := k_regionaddv_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
-		lut[X], lut[Y], lut[Z], regions.Ptr, N, cfg, ClCmdQueue, evtWL)
+		lut[X], lut[Y], lut[Z], regions.Ptr, N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // dst += LUT[region], for scalar. Used to add terms to scalar excitation.
@@ -36,10 +37,11 @@ func RegionAddS(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 
 	// execute
 	event := k_regionadds_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // decode the regions+LUT pair into an uncompressed array
@@ -52,10 +54,11 @@ func RegionDecode(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 
 	// execute
 	event := k_regiondecode_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // select the part of src within the specified region, set 0's everywhere else.
@@ -70,10 +73,13 @@ func RegionSelect(dst, src *data.Slice, regions *Bytes, region byte) {
 	// execute
 	evtList := make([]*cl.Event, dst.NComp())
 	for c := 0; c < dst.NComp(); c++ {
-		evtList[c] = k_regionselect_async(dst.DevPtr(c), src.DevPtr(c), regions.Ptr, region, N, cfg,
-			ClCmdQueue, evtWL)
+		event := k_regionselect_async(dst.DevPtr(c), src.DevPtr(c), regions.Ptr, region, N, cfg,
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }

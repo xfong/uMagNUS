@@ -3,7 +3,6 @@ package opencl
 import (
 	"unsafe"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -29,8 +28,9 @@ func AddDMIBulk(Beff *data.Slice, m *data.Slice, Aex_red, D_red SymmLUT, Msat MS
 		Msat.DevPtr(0), Msat.Mul(0),
 		unsafe.Pointer(Aex_red), unsafe.Pointer(D_red), regions.Ptr,
 		float32(cellsize[X]), float32(cellsize[Y]), float32(cellsize[Z]),
-		N[X], N[Y], N[Z], mesh.PBC_code(), openBC, cfg, ClCmdQueue, evtWL)
+		N[X], N[Y], N[Z], mesh.PBC_code(), openBC, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -20,8 +19,9 @@ func VecNorm(dst *data.Slice, a *data.Slice) {
 	// execute
 	event := k_vecnorm_async(dst.DevPtr(0),
 		a.DevPtr(X), a.DevPtr(Y), a.DevPtr(Z),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

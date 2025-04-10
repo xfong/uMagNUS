@@ -20,11 +20,14 @@ func Mul(dst, a, b *data.Slice) {
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_mul_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, ClCmdQueue, evtWL)
+		event := k_mul_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // divide: dst[i] = a[i] / b[i]
@@ -41,11 +44,14 @@ func Div(dst, a, b *data.Slice) {
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_pointwise_div_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, ClCmdQueue, evtWL)
+		event := k_pointwise_div_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // Add: dst = src1 + src2.
@@ -67,15 +73,18 @@ func Madd2(dst, src1, src2 *data.Slice, factor1, factor2 float32) {
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_madd2_async(dst.DevPtr(c),
+		event := k_madd2_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
 			src2.DevPtr(c), factor2,
 			N, cfg,
-			ClCmdQueue, evtWL)
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3 * factor3
@@ -92,16 +101,19 @@ func Madd3(dst, src1, src2, src3 *data.Slice, factor1, factor2, factor3 float32)
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_madd3_async(dst.DevPtr(c),
+		event := k_madd3_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
 			src2.DevPtr(c), factor2,
 			src3.DevPtr(c), factor3,
 			N, cfg,
-			ClCmdQueue, evtWL)
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4
@@ -118,17 +130,20 @@ func Madd4(dst, src1, src2, src3, src4 *data.Slice, factor1, factor2, factor3, f
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_madd4_async(dst.DevPtr(c),
+		event := k_madd4_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
 			src2.DevPtr(c), factor2,
 			src3.DevPtr(c), factor3,
 			src4.DevPtr(c), factor4,
 			N, cfg,
-			ClCmdQueue, evtWL)
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4 + src5[i] * factor5
@@ -145,18 +160,21 @@ func Madd5(dst, src1, src2, src3, src4, src5 *data.Slice, factor1, factor2, fact
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_madd5_async(dst.DevPtr(c),
+		event := k_madd5_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
 			src2.DevPtr(c), factor2,
 			src3.DevPtr(c), factor3,
 			src4.DevPtr(c), factor4,
 			src5.DevPtr(c), factor5,
 			N, cfg,
-			ClCmdQueue, evtWL)
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4 + src5[i] * factor5 + src6[i] * factor6
@@ -173,7 +191,7 @@ func Madd6(dst, src1, src2, src3, src4, src5, src6 *data.Slice, factor1, factor2
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_madd6_async(dst.DevPtr(c),
+		event := k_madd6_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
 			src2.DevPtr(c), factor2,
 			src3.DevPtr(c), factor3,
@@ -181,11 +199,14 @@ func Madd6(dst, src1, src2, src3, src4, src5, src6 *data.Slice, factor1, factor2
 			src5.DevPtr(c), factor5,
 			src6.DevPtr(c), factor6,
 			N, cfg,
-			ClCmdQueue, evtWL)
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4 + src5[i] * factor5 + src6[i] * factor6 + src7[i] * factor7
@@ -202,7 +223,7 @@ func Madd7(dst, src1, src2, src3, src4, src5, src6, src7 *data.Slice, factor1, f
 	// execute
 	evtList := make([]*cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_madd7_async(dst.DevPtr(c),
+		event := k_madd7_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
 			src2.DevPtr(c), factor2,
 			src3.DevPtr(c), factor3,
@@ -211,9 +232,12 @@ func Madd7(dst, src1, src2, src3, src4, src5, src6, src7 *data.Slice, factor1, f
 			src6.DevPtr(c), factor6,
 			src7.DevPtr(c), factor7,
 			N, cfg,
-			ClCmdQueue, evtWL)
+			evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }

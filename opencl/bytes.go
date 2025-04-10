@@ -22,6 +22,7 @@ type Bytes struct {
 func NewBytes(Len int) *Bytes {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	ptr, err := ClCtx.CreateEmptyBuffer(cl.MemReadWrite, Len)
 	if err != nil {
@@ -30,11 +31,8 @@ func NewBytes(Len int) *Bytes {
 	zeroPattern := uint8(0)
 
 	if Synchronous { // debug
-		if err = ClCmdQueue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in newbytes: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Printf("failed to wait for last event in newbytes: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Printf("failed to wait for last marker in newbytes: %+v \n", err)
 		}
 		timer.Start("newbytes")
 	}
@@ -42,21 +40,25 @@ func NewBytes(Len int) *Bytes {
 	// sequence command according to queue
 	evtWL := ClLastEvent
 
-	// execute
-	if event, err = ClCmdQueue.EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, evtWL); err != nil {
+	// create command queue and execute
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panic("failed to create command queue in newbytes: %+v \n", err)
+	}
+	if event, err = queue.EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, evtWL); err != nil {
 		panic(err)
 	}
 
-	if err = ClCmdQueue.Flush(); err != nil {
-		log.Panic("failed to flush queue in newbytes:", err)
+	if err = queue.Release(); err != nil {// implicit flush
+		fmt.Printf("failed to release queue in newbytes: %+v \n", err)
 	}
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Panic("WaitForEvents failed in newbytes:", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Panic("wait for last marker failed in newbytes:", err)
 		}
 		timer.Stop("newbytes")
 	}
@@ -87,6 +89,7 @@ func (src *Bytes) Download(dst []byte) {
 func (dst *Bytes) Set(index int, value byte) {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	if index < 0 || index >= dst.Len {
 		log.Panic("Bytes.Set: index out of range:", index)
@@ -94,11 +97,8 @@ func (dst *Bytes) Set(index int, value byte) {
 	src := value
 
 	if Synchronous { // debug
-		if err = ClCmdQueue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in bytes.set: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Printf("failed to wait for last event in bytes.set: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Printf("failed to wait for last marker in bytes.set: %+v \n", err)
 		}
 		timer.Start("bytesSet")
 	}
@@ -106,21 +106,25 @@ func (dst *Bytes) Set(index int, value byte) {
 	// sequence command according to queue
 	evtWL := ClLastEvent
 
-	// execute
-	if event, err = ClCmdQueue.EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), evtWL); err != nil {
+	// create command queue and execute
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panic("failed to create command queue in bytes.set: %+v \n", err)
+	}
+	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), evtWL); err != nil {
 		panic(err)
 	}
 
-	if err = ClCmdQueue.Flush(); err != nil {
-		log.Panic("failed fllush queue in bytes.set:", err)
+	if err = queue.Release(); err != nil { // implicit flush
+		fmt.Printf("failed to release queue in bytes.set: %+v \n", err)
 	}
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Panic("WaitForEvents failed in bytes.set:", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Panic("wait for last marker failed in bytes.set:", err)
 		}
 		timer.Stop("bytesSet")
 	}
@@ -129,9 +133,13 @@ func (dst *Bytes) Set(index int, value byte) {
 
 // Get one element.
 // data.Index can be used to find the index for x,y,z.
+// TODO: return as pointer and use events for synchronizing, which will allow us to wait on a
+//
+//	list of events rather than an individual event
 func (src *Bytes) Get(index int) byte {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	if index < 0 || index >= src.Len {
 		log.Panic("Bytes.Set: index out of range:", index)
@@ -139,11 +147,8 @@ func (src *Bytes) Get(index int) byte {
 	dst := make([]byte, 1)
 
 	if Synchronous { // debug
-		if err = ClCmdQueue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in bytes.get: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Printf("failed to wait for last event in bytes.get: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Printf("failed to wait for last event in bytes.get(): %+v \n", err)
 		}
 		timer.Start("bytesGet")
 	}
@@ -151,17 +156,25 @@ func (src *Bytes) Get(index int) byte {
 	// sequence command ccording to queue
 	evtWL := ClLastEvent
 
-	// execute
-	if event, err = ClCmdQueue.EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, evtWL); err != nil {
+	// create command queue and execute
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panic("failed to create command queue in btyes.get: %+v \n", err)
+	}
+	if event, err = queue.EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, evtWL); err != nil {
 		panic(err)
 	}
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	if err = queue.Release(); err != nil { // implicit flush
+		fmt.Printf("failed to release queue in bytes.get: %+v \n", err)
+	}
+
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	// Must synchronize (needed??)
-	if err = cl.WaitForEvents([](*cl.Event){event}); err != nil {
-		log.Panic("WaitForEvents failed in Bytes.Get():", err)
+	if err = WaitLastEvent(); err != nil {
+		log.Panic("wait for last marker failed in bytes.get(): %+v \n", err)
 	}
 
 	if Synchronous {
@@ -176,17 +189,12 @@ func (b *Bytes) Free() {
 	var err error
 
 	// Must synchronize
-	if err = ClCmdQueue.Finish(); err != nil {
-		log.Printf("failed to wait for queue to finish in bytes.free: %+v \n", err)
-	}
-	if err = cl.WaitForEvents(ClLastEvent); err != nil {
-		log.Printf("wait for last event in bytes.free failed: %+v \n", err)
+	if err = WaitLastMarker(); err != nil {
+		log.Printf("failed to wait for last marker in bytes.free(): %+v \n", err)
 	}
 
-	ClLastEvent = make([]*cl.Event, 1)
-	if ClLastEvent[0], err = ClCmdQueue.EnqueueMarkerWithWaitList(nil); err != nil {
-		log.Printf("failed to enqueue marker in bytes.free(): %+v \n", err)
-	}
+	ClLastEvent = []*cl.Event{ClInitMarker}
+	ClLastMarker = ClInitMarker
 
 	if b.Ptr != nil {
 		tmpObj := (*cl.MemObject)(b.Ptr)

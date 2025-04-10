@@ -3,7 +3,6 @@ package opencl
 import (
 	"unsafe"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -32,8 +31,9 @@ func AddOommfSlonczewskiTorque(torque, m *data.Slice, Msat, J, fixedP, alpha, pf
 		λfree.DevPtr(0), λfree.Mul(0),
 		ε_prime.DevPtr(0), ε_prime.Mul(0),
 		unsafe.Pointer(uintptr(0)), flt,
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

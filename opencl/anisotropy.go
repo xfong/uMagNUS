@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -30,10 +29,11 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 		c2.DevPtr(X), c2.Mul(X),
 		c2.DevPtr(Y), c2.Mul(Y),
 		c2.DevPtr(Z), c2.Mul(Z),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // Add uniaxial magnetocrystalline anisotropy field to Beff.
@@ -57,10 +57,11 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 		u.DevPtr(X), u.Mul(X),
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // Add uniaxial magnetocrystalline anisotropy field to Beff.
@@ -83,10 +84,11 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 		u.DevPtr(X), u.Mul(X),
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // Add voltage-conrtolled magnetic anisotropy field to Beff.
@@ -112,8 +114,9 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 		u.DevPtr(X), u.Mul(X),
 		u.DevPtr(Y), u.Mul(Y),
 		u.DevPtr(Z), u.Mul(Z),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

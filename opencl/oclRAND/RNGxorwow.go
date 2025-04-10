@@ -8,8 +8,9 @@ import (
 	timer "github.com/seeder-research/uMagNUS/timer"
 )
 
-func (p *XORWOW_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Event {
 	var err error
+	var queue *cl.CommandQueue
 	var jump_mat *cl.MemObject
 	var event *cl.Event
 
@@ -23,16 +24,26 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, even
 	if err != nil {
 		log.Fatalln("Unable to create buffer for XORWOW jump matrices array!")
 	}
+
+	if Synchronous { // debug
+		if err = cl.WaitForEvents(events); err != nil {
+			log.Printf("failed to wait for last marker in beginning of xorwow.init: %+v \n", err)
+		}
+		timer.Start("xorwow_init")
+	}
+
 	//    ....Copying jump matrices from host side to device side
 	jump_events := make([]*cl.Event, int(XORWOW_JUMP_MATRICES))
 	for idx := 0; idx < int(XORWOW_JUMP_MATRICES); idx++ {
-		jump_events[idx], err = queue.EnqueueWriteBuffer(jump_mat, false, idx*int(XORWOW_SIZE)*int(unsafe.Sizeof(h_xorwow_sequence_jump_matrices[0][0])), int(unsafe.Sizeof(h_xorwow_sequence_jump_matrices[0][0]))*int(XORWOW_SIZE), unsafe.Pointer(&h_xorwow_sequence_jump_matrices[idx][0]), nil)
-		if err != nil {
+		// create command queue and execute
+		if queue, err = CreateCommandQueue(); err != nil {
+			log.Panicf("failed to create command queue in xorwow.init: %+v \n", err)
+		}
+		if jump_events[idx], err = queue.EnqueueWriteBuffer(jump_mat, false, idx*int(XORWOW_SIZE)*int(unsafe.Sizeof(h_xorwow_sequence_jump_matrices[0][0])), int(unsafe.Sizeof(h_xorwow_sequence_jump_matrices[0][0]))*int(XORWOW_SIZE), unsafe.Pointer(&h_xorwow_sequence_jump_matrices[idx][0]), nil); err != nil {
 			log.Fatalln("Unable to write jump matrices to device: ", err)
 		}
-		if err = queue.Flush(); err != nil {
-			log.Fatalln("failed flush queue on copying jump matrices to devices: %+v \n", err)
-		}
+
+		queue.Release() // implicit flush
 	}
 
 	// Seed the RNG
@@ -41,14 +52,21 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, queue *cl.CommandQueue, even
 	if events != nil {
 		seed_events = append(events)
 	}
-	event = k_xorwow_seed_async(unsafe.Pointer(p.Status_buf), unsafe.Pointer(jump_mat), seed, &config{[]int{totalCount}, []int{p.GetGroupSize()}}, queue, seed_events)
+	event = k_xorwow_seed_async(unsafe.Pointer(p.Status_buf), unsafe.Pointer(jump_mat), seed, &config{[]int{totalCount}, []int{p.GetGroupSize()}}, seed_events)
+
+	if Synchronous { // debug
+		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			log.Printf("failed to wait for last marker in xorwow.init: %+v \n", err)
+		}
+		timer.Stop("xorwow_init")
+	}
 
 	p.Ini = true
 
 	return event
 }
 
-func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
 	var err error
 	var event *cl.Event
 
@@ -57,23 +75,18 @@ func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_si
 	}
 
 	if Synchronous { // debug
-		if err = queue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in beginning of xorwow.generateuniform: %+v \n", err)
-		}
-		if events != nil {
-			if err = cl.WaitForEvents(events); err != nil {
-				log.Printf("failed to wait for last event in xorwow.generateuniform: %+v \n", err)
-			}
+		if err = cl.WaitForEvents(events); err != nil {
+			log.Printf("failed to wait for last marker in beginning of xorwow.generateuniform: %+v \n", err)
 		}
 		timer.Start("xorwow_uniform")
 	}
 
 	event = k_xorwow_uniform_async(unsafe.Pointer(p.Status_buf), d_data, data_size,
-		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, queue, events)
+		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
-			log.Printf("failed to wait for last event in xorwow.generateuniform: %+v \n", err)
+		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			log.Printf("failed to wait for last marker in xorwow.generateuniform: %+v \n", err)
 		}
 		timer.Stop("xorwow_uniform")
 	}
@@ -81,7 +94,7 @@ func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_si
 	return event
 }
 
-func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
 	var err error
 	var event *cl.Event
 
@@ -90,24 +103,19 @@ func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_siz
 	}
 
 	if Synchronous { // debug
-		if err := queue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in beginning of xorwow.generatenormal: %+v \n", err)
-		}
-		if events != nil {
-			if err = cl.WaitForEvents(events); err != nil {
-				log.Printf("failed to wait for last event in xorwow.generatenormal: %+v \n", err)
-			}
+		if err = cl.WaitForEvents(events); err != nil {
+			log.Printf("failed to wait for last marker in beginning of xorwow.generatenormal: %+v \n", err)
 		}
 		timer.Start("xorwow_normal")
 	}
 
 	// execute
 	event = k_xorwow_normal_async(unsafe.Pointer(p.Status_buf), d_data, data_size,
-		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, queue, events)
+		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err := cl.WaitForEvents([]*cl.Event{event}); err != nil {
-			log.Printf("failed to wait for last event in xorwow.generatenormal: %+v \n", err)
+		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+			log.Printf("failed to wait for last marker in xorwow.generatenormal: %+v \n", err)
 		}
 		timer.Stop("xorwow_normal")
 	}

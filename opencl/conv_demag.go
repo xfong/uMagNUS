@@ -2,6 +2,7 @@ package opencl
 
 import (
 	"fmt"
+	"log"
 	"unsafe"
 
 	cl "github.com/seeder-research/uMagNUS/cl"
@@ -54,11 +55,8 @@ func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
 	var err error
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in demagconvolution.exec3d: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			fmt.Printf("failed to wait for last event in demagconvolution.exec3d: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker in demagconvolution.exec3d: %+v \n", err)
 		}
 	}
 
@@ -81,11 +79,8 @@ func (c *DemagConvolution) exec2D(outp, inp, vol *data.Slice, Msat MSlice) {
 	var err error
 
 	if Synchronous {
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			fmt.Printf("failed to wait for last event in demagconvolution.exec2d: %+v \n", err)
-		}
-		if err := ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in demagconvolution.exec2d: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker in demagconvolution.exec2d: %+v \n", err)
 		}
 	}
 
@@ -120,34 +115,40 @@ func (c *DemagConvolution) is2D() bool {
 func zero1_async(dst *data.Slice) {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	val := float32(0.0)
 	if dst == nil {
 		panic("ERROR (zero1_async): dst pointer cannot be nil")
 	}
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in zero1_async: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			fmt.Printf("failed to wait for last event in zero1_async: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker in zero1_async: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
 
-	// execute
-	if event, err = ClCmdQueue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
+	// create command queue and execute
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panicf("failed to create command queue in zero1_async: %+v \n", err)
+	}
+	if event, err = queue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
 		fmt.Printf("EnqueueFillBuffer failed: %+v \n", err)
 	}
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	if err = queue.Release(); err != nil { // implicit flush
+		fmt.Printf("failed to release queue in zero1_async: %+v \n", err)
+	}
+
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	if Synchronous {
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			fmt.Printf("WaitForEvents failed in zero1_async: %+v \n", err)
+		if err = WaitLastEvent(); err != nil {
+			fmt.Printf("wait for last marker failed in zero1_async: %+v \n", err)
 		}
 	}
 }
@@ -225,11 +226,7 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 				if err != nil {
 					fmt.Printf("error enqueuing forward fft in init: %+v \n ", err)
 				}
-				data.Copy(kfull, output)
-				// Wait for FFT to complete and copyback to complete
-				if err = ClCmdQueue.Finish(); err != nil {
-					fmt.Printf("error waiting main queue to finish after fft copyback in init: %+v \n ", err)
-				}
+				data.Copy(kfull, output) // need to wait??
 
 				// extract non-redundant part (Y,Z symmetry)
 				for iz := 0; iz < kCSize[Z]; iz++ {

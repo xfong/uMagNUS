@@ -24,10 +24,12 @@ func Crop(dst, src *data.Slice, offX, offY, offZ int) {
 	for c := 0; c < dst.NComp(); c++ {
 		event := k_crop_async(dst.DevPtr(c), D[X], D[Y], D[Z],
 			src.DevPtr(c), S[X], S[Y], S[Z],
-			offX, offY, offZ, cfg, ClCmdQueue, evtWL)
+			offX, offY, offZ, cfg, evtWL)
+		// set event markers
+		AddEventToSequence(event)
 		evtList[c] = event
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }

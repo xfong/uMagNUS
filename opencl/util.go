@@ -2,8 +2,8 @@ package opencl
 
 import (
 	"fmt"
-	//	cl "github.com/seeder-research/uMagNUS/cl"
-	//	util "github.com/seeder-research/uMagNUS/util"
+	// cl "github.com/seeder-research/uMagNUS/cl"
+	// util "github.com/seeder-research/uMagNUS/util"
 )
 
 // OpenCL Launch parameters.

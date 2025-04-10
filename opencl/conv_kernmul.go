@@ -4,7 +4,6 @@ package opencl
 // Launch configs range over all complex elements of fft input. This could be optimized: range only over kernel.
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -20,10 +19,11 @@ func kernMulRSymm3D_async(fftM [3]*data.Slice, Kxx, Kyy, Kzz, Kyz, Kxz, Kxy *dat
 	// execute
 	event := k_kernmulRSymm3D_async(fftM[X].DevPtr(0), fftM[Y].DevPtr(0), fftM[Z].DevPtr(0),
 		Kxx.DevPtr(0), Kyy.DevPtr(0), Kzz.DevPtr(0), Kyz.DevPtr(0), Kxz.DevPtr(0), Kxy.DevPtr(0),
-		Nx, Ny, Nz, cfg, ClCmdQueue, evtWL)
+		Nx, Ny, Nz, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // kernel multiplication for 2D demag convolution on X and Y, exploiting full kernel symmetry.
@@ -37,10 +37,11 @@ func kernMulRSymm2Dxy_async(fftMx, fftMy, Kxx, Kyy, Kxy *data.Slice, Nx, Ny int)
 	// execute
 	event := k_kernmulRSymm2Dxy_async(fftMx.DevPtr(0), fftMy.DevPtr(0),
 		Kxx.DevPtr(0), Kyy.DevPtr(0), Kxy.DevPtr(0),
-		Nx, Ny, cfg, ClCmdQueue, evtWL)
+		Nx, Ny, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // kernel multiplication for 2D demag convolution on Z, exploiting full kernel symmetry.
@@ -53,10 +54,11 @@ func kernMulRSymm2Dz_async(fftMz, Kzz *data.Slice, Nx, Ny int) {
 
 	// execute
 	event := k_kernmulRSymm2Dz_async(fftMz.DevPtr(0), Kzz.DevPtr(0), Nx, Ny, cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // kernel multiplication for general 1D convolution. Does not assume any symmetry.
@@ -70,8 +72,9 @@ func kernMulC_async(fftM, K *data.Slice, Nx, Ny int) {
 
 	// execute
 	event := k_kernmulC_async(fftM.DevPtr(0), K.DevPtr(0), Nx, Ny, cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

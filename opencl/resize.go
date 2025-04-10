@@ -3,7 +3,6 @@ package opencl
 import (
 	"fmt"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -27,14 +26,15 @@ func Resize(dst, src *data.Slice, layer int) {
 	// execute
 	event := k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
 		src.DevPtr(0), srcsize[X], srcsize[Y], srcsize[Z], layer, scalex, scaley, cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	if Synchronous {
-		if err := cl.WaitForEvents(ClLastEvent); err != nil {
-			fmt.Printf("WaitForEvents failed in resize: %+v \n", err)
+		if err := WaitLastEvent(); err != nil {
+			fmt.Printf("wait for last event failed in resize: %+v \n", err)
 		}
 	}
 }

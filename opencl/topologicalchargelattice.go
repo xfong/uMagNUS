@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -22,8 +21,9 @@ func SetTopologicalChargeLattice(s *data.Slice, m *data.Slice, mesh *data.Mesh) 
 		s.DevPtr(X),
 		m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		icxcy, N[X], N[Y], N[Z], mesh.PBC_code(),
-		cfg, ClCmdQueue, evtWL)
+		cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

@@ -2,6 +2,7 @@ package opencl
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"unsafe"
 
@@ -29,28 +30,21 @@ func Sum(in *data.Slice) float32 {
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
-		}
-		if ClLastEvent[0] != nil {
-			if err = cl.WaitForEvents(ClLastEvent); err != nil {
-				fmt.Printf("failed to wait for last event in sum: %+v \n", err)
-			}
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
-	if ClLastEvent[0] == nil {
-		evtWL = nil
-	}
 
 	// execute
 	event := k_reducesum_async(in.DevPtr(0), out, 0,
-		in.Len(), reducecfg, ClCmdQueue, evtWL)
+		in.Len(), reducecfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	results := copyback(out)
 	return results
@@ -70,31 +64,27 @@ func Dot(a, b *data.Slice) float32 {
 	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
-		}
-		if ClLastEvent[0] != nil {
-			if err = cl.WaitForEvents(ClLastEvent); err != nil {
-				fmt.Printf("failed to wait for last event in sum: %+v \n", err)
-			}
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
-	if ClLastEvent[0] == nil {
-		evtWL = nil
-	}
 
 	// execute
 	evtList := make([]*cl.Event, numComp)
 	for c := 0; c < numComp; c++ {
-		evtList[c] = k_reducedot_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
-			a.Len(), reducecfg, ClCmdQueue, evtWL) // all components add to out
+		event := k_reducedot_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
+			a.Len(), reducecfg, evtWL) // all components add to out
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
 	// set event marker
-	ClLastEvent = evtList
+	UpdateLastEventList(evtList)
+
 	for c := 0; c < a.NComp(); c++ {
 		results := copyback(out[c])
 		//		for _, v := range results {
@@ -113,31 +103,24 @@ func MaxAbs(in *data.Slice) float32 {
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
-		}
-		if ClLastEvent[0] != nil {
-			if err = cl.WaitForEvents(ClLastEvent); err != nil {
-				fmt.Printf("failed to wait for last event in sum: %+v \n", err)
-			}
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
-	if ClLastEvent[0] == nil {
-		evtWL = nil
-	}
 
 	// execute
 	event := k_reducemaxabs_async(in.DevPtr(0), out, 0,
-		in.Len(), reducecfg, ClCmdQueue, evtWL)
+		in.Len(), reducecfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	results := copyback(out)
-	return float32(results)
+	return results
 }
 
 // Maximum element-wise difference
@@ -154,34 +137,29 @@ func MaxDiff(a, b *data.Slice) []float32 {
 	}
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
-		}
-		if ClLastEvent[0] != nil {
-			if err = cl.WaitForEvents(ClLastEvent); err != nil {
-				fmt.Printf("failed to wait for last event in sum: %+v \n", err)
-			}
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
-	if ClLastEvent[0] == nil {
-		evtWL = nil
-	}
 
 	// execute
 	evtList := make([]*cl.Event, numComp)
 	for c := 0; c < numComp; c++ {
-		evtList[c] = k_reducemaxdiff_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
-			a.Len(), reducecfg, ClCmdQueue, evtWL)
+		event := k_reducemaxdiff_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
+			a.Len(), reducecfg, evtWL)
+		// set event markers
+		evtList[c] = event
+		AddEventToSequence(event)
 	}
 
 	// set event marker
-	ClLastEvent = evtList
+	UpdateLastEventList(evtList)
 
 	for c := 0; c < numComp; c++ {
-		returnVal[c] = float32(copyback(out[c]))
+		returnVal[c] = copyback(out[c])
 	}
 	return returnVal
 }
@@ -196,28 +174,21 @@ func MaxVecNorm(v *data.Slice) float64 {
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
-		}
-		if ClLastEvent[0] != nil {
-			if err = cl.WaitForEvents(ClLastEvent); err != nil {
-				fmt.Printf("failed to wait for last event in sum: %+v \n", err)
-			}
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
-	if ClLastEvent[0] == nil {
-		evtWL = nil
-	}
 
 	// execute
 	event := k_reducemaxvecnorm2_async(v.DevPtr(0), v.DevPtr(1), v.DevPtr(2),
-		out, 0, v.Len(), reducecfg, ClCmdQueue, evtWL)
+		out, 0, v.Len(), reducecfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	results := copyback(out)
 	return math.Sqrt(float64(results))
@@ -236,29 +207,22 @@ func MaxVecDiff(x, y *data.Slice) float64 {
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			fmt.Printf("failed to wait for queue to finish in sum: %+v \n", err)
-		}
-		if ClLastEvent[0] != nil {
-			if err = cl.WaitForEvents(ClLastEvent); err != nil {
-				fmt.Printf("failed to wait for last event in sum: %+v \n", err)
-			}
+		if err = WaitLastMarker(); err != nil {
+			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
 		}
 	}
 
 	// sequence command according to queue
 	evtWL := ClLastEvent
-	if ClLastEvent[0] == nil {
-		evtWL = nil
-	}
 
 	// execute
 	event := k_reducemaxvecdiff2_async(x.DevPtr(0), x.DevPtr(1), x.DevPtr(2),
 		y.DevPtr(0), y.DevPtr(1), y.DevPtr(2),
-		out, 0, x.Len(), reducecfg, ClCmdQueue, evtWL)
+		out, 0, x.Len(), reducecfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 
 	results := copyback(out)
 	return math.Sqrt(float64(results))
@@ -271,18 +235,28 @@ var reduceBuffers chan (*cl.MemObject) // pool of 1-float OpenCL buffers for red
 func reduceBuf(initVal float32) unsafe.Pointer {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	if reduceBuffers == nil {
 		initReduceBuf()
 	}
 	buf := <-reduceBuffers
-	if event, err = ClCmdQueue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil); err != nil {
+	if queue, err = CreateCommandQueue(); err != nil {
+		log.Panic("failed to create command queue in reduceBuf: %+v \n", err)
+	}
+	if event, err = queue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil); err != nil {
 		fmt.Printf("reduceBuf failed: %+v \n", err)
 		return nil
 	}
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	if err = queue.Release(); err != nil { // implicit flush
+		fmt.Printf("failed to release queue in reduceBuf: %+v \n", err)
+	}
+
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
+
 	return (unsafe.Pointer)(buf)
 }
 

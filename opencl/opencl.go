@@ -2,6 +2,7 @@ package opencl
 
 import (
 	"fmt"
+	"log"
 	"unsafe"
 
 	cl "github.com/seeder-research/uMagNUS/cl"
@@ -17,21 +18,36 @@ const (
 )
 
 // Assumes kernel arguments set prior to launch
-func LaunchKernel(kernname string, gridDim, workDim []int, queue *cl.CommandQueue, events []*cl.Event) *cl.Event {
-	if KernList[kernname] == nil {
+func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *cl.Event {
+	var err error
+	var queue *cl.CommandQueue
+	var KernEvent *cl.Event
+
+	if KernList[kernname] == nil { // get kernel object
 		util.Fatal("Kernel " + kernname + " does not exist!")
 		return nil
 	}
-	if Debug {
+
+	if Debug { // debug
 		fmt.Printf("Launching kernel: %+v with Grid = %+v and Block = %+v \n", kernname, gridDim, workDim)
 	}
-	KernEvent, err := queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events)
-	if err != nil {
+
+	if queue, err = CreateCommandQueue(); err != nil { // get command queue
 		util.Fatal(err)
 		return nil
-	} else {
-		return KernEvent
 	}
+
+	// execute
+	if KernEvent, err = queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events); err != nil {
+		util.Fatal(err)
+		return nil
+	}
+
+	if err = queue.Release(); err != nil { // implicit flush to device
+		fmt.Printf("failed to release queue: %+v \n", err)
+	}
+
+	return KernEvent
 }
 
 func SetKernelArgWrapper(kernname string, index int, arg interface{}) {
@@ -63,4 +79,107 @@ func SetKernelArgWrapper(kernname string, index int, arg interface{}) {
 			util.Fatal(err)
 		}
 	}
+}
+
+func CreateCommandQueue() (*cl.CommandQueue, error) {
+	if ClCtx == nil {
+		log.Panicf("ClCtx (context) cannot be nil! \n")
+		return nil, nil
+	}
+	if ClDevice == nil {
+		log.Panicf("ClDevice (device) cannot be nil! \n")
+		return nil, nil
+	}
+	return ClCtx.CreateCommandQueue(ClDevice, 0)
+}
+
+func WaitCommandSequence() {
+	var err error
+	if err = WaitLastMarker(); err != nil {
+		fmt.Printf("failed to wait for event in WaitCommandSequence: %+v \n", err)
+	}
+}
+
+func InitMarkers() {
+	var err error
+	var queue *cl.CommandQueue
+	var marker *cl.Event
+
+	if queue, err = CreateCommandQueue(); err != nil { // get queue
+		log.Panicf("failed to create command queue in InitMarkers: %+v \n", err)
+		return
+	}
+
+	// enqueue a marker with no dependencies that completes when executed
+	if marker, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
+		log.Panicf("failed to enqueue marker in InitMarkers: %+v \n", err)
+	}
+
+	// update
+	ClInitMarker, ClLastMarker = marker, marker
+	ClLastEvent = []*cl.Event{marker}
+
+}
+
+func AddEventToSequence(ev *cl.Event) {
+	var err error
+	var queue *cl.CommandQueue
+	var marker *cl.Event
+
+	if queue, err = CreateCommandQueue(); err != nil {
+		fmt.Printf("failed to create command queue in addeventtosequence: %+v \n", err)
+		return
+	}
+
+	if marker, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{ClLastMarker, ev}); err != nil {
+		fmt.Printf("failed to enqueue marker in addeventtosequence: %+v \n", err)
+		return
+	}
+
+	ClLastMarker = marker
+}
+
+func WaitLastMarker() error {
+	if ClLastMarker == nil {
+		fmt.Printf("ClLastMarker cannot be nil in waitlastmarker! \n")
+	}
+	return cl.WaitForEvents([]*cl.Event{ClLastMarker})
+}
+
+func UpdateLastEventSingle(ev *cl.Event) {
+	if ev == nil {
+		fmt.Printf("ev cannot be nil in updatelasteventsingle! \n")
+		return
+	}
+
+	ClLastEvent = []*cl.Event{ev}
+}
+
+func UpdateLastEventList(evList []*cl.Event) {
+	if evList == nil {
+		fmt.Printf("ev cannot be nil in updatelasteventlist! \n")
+		return
+	}
+
+	if len(evList) > 0 {
+		ClLastEvent = evList
+	} else {
+		if ClInitMarker != nil {
+			ClLastEvent = []*cl.Event{ClInitMarker}
+		} else {
+			fmt.Printf("failed to update ClLastEvent in UpdateLastEventList! \n")
+		}
+	}
+}
+
+func WaitLastEvent() error {
+	if ClLastEvent == nil {
+		fmt.Printf("ClLastEvent cannot be nil in waitlastevent! \n")
+	}
+
+	if len(ClLastEvent) > 0 {
+		return cl.WaitForEvents(ClLastEvent)
+	}
+
+	return nil
 }

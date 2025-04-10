@@ -20,10 +20,13 @@ func Divide(dst, a, b *data.Slice) {
 	// execute
 	evtList := make([]*cl.Event, 3)
 	for c := 0; c < nComp; c++ {
-		evtList[c] = k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
-			ClCmdQueue, evtWL)
+		event := k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
+			evtWL)
+		// set event markers
+		AddEventToSequence(event)
+		evtList[c] = event
 	}
 
-	// set event marker
-	ClLastEvent = evtList
+	// set event markers
+	UpdateLastEventList(evtList)
 }

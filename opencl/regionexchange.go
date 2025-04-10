@@ -5,7 +5,6 @@ package opencl
 import (
 	"math"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -40,10 +39,11 @@ func AddRegionExchangeField(B, m *data.Slice, Msat MSlice, regions *Bytes, regio
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, sig_eff, sig2_eff, N[X], N[Y], N[Z], cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 func AddRegionExchangeEdens(Edens, m *data.Slice, Msat MSlice, regions *Bytes, regionA, regionB uint8, sX, sY, sZ int, sig, sig2 float32, mesh *data.Mesh) {
@@ -73,8 +73,9 @@ func AddRegionExchangeEdens(Edens, m *data.Slice, Msat MSlice, regions *Bytes, r
 		Msat.DevPtr(0), Msat.Mul(0),
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, sig_eff, sig2_eff, N[X], N[Y], N[Z], cfg,
-		ClCmdQueue, evtWL)
+		evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

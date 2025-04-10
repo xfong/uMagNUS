@@ -5,7 +5,6 @@ package opencl
 import (
 	"math"
 
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -34,8 +33,9 @@ func AddRegionSpinTorque(torque, m *data.Slice, Msat MSlice, regions *Bytes, reg
 		regions.Ptr, regionA, regionB,
 		sX, sY, sZ, N[X], N[Y], N[Z],
 		J, alpha, pfix, pfree, λfix, λfree, ε_prime, float32(cellwgt),
-		cfg, ClCmdQueue, evtWL)
+		cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

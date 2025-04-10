@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )
@@ -30,10 +29,11 @@ func AddMagnetoelasticField(Beff, m *data.Slice, exx, eyy, ezz, exy, exz, eyz, B
 		exy.DevPtr(0), exy.Mul(0), exz.DevPtr(0), exz.Mul(0), eyz.DevPtr(0), eyz.Mul(0),
 		B1.DevPtr(0), B1.Mul(0), B2.DevPtr(0), B2.Mul(0),
 		Msat.DevPtr(0), Msat.Mul(0),
-		N, cfg, ClCmdQueue, evtWL)
+		N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
 
 // Calculate magneto-elasticit force density
@@ -58,8 +58,9 @@ func GetMagnetoelasticForceDensity(out, m *data.Slice, B1, B2 MSlice, mesh *data
 		B1.DevPtr(0), B1.Mul(0), B2.DevPtr(0), B2.Mul(0),
 		rcsx, rcsy, rcsz,
 		N[X], N[Y], N[Z],
-		mesh.PBC_code(), cfg, ClCmdQueue, evtWL)
+		mesh.PBC_code(), cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }

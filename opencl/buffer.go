@@ -25,13 +25,11 @@ const buf_max = 100 // maximum number of buffers to allocate (detect memory leak
 func Buffer(nComp int, size [3]int) *data.Slice {
 	var err error
 	var event *cl.Event
+	var queue *cl.CommandQueue
 
 	if Synchronous {
-		if err = ClCmdQueue.Finish(); err != nil {
-			log.Printf("failed to wait for queue to finish in beginning of buffer: %+v \n", err)
-		}
-		if err = cl.WaitForEvents(ClLastEvent); err != nil {
-			log.Printf("failed to wait for last event in buffer: %+v \n", err)
+		if err = WaitLastMarker(); err != nil {
+			log.Printf("failed to wait for last marker in buffer: %+v \n", err)
 		}
 	}
 
@@ -64,27 +62,32 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		}
 		ptrs[i] = unsafe.Pointer(tmpPtr)
 
-		// execute
-		if event, err = ClCmdQueue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
+		// create command queue and execute
+		if queue, err = CreateCommandQueue(); err != nil {
+			log.Panicf("failed to create command queue in buffer: %+v \n", err)
+		}
+		if event, err = queue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 			log.Printf("CreateEmptyBuffer failed in buffer: %+v \n", err)
 		}
 		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 
-		if err = ClCmdQueue.Flush(); err != nil {
-			log.Printf("flush queue at end of buffer failed: %+v \n", err)
+		if err = queue.Release(); err != nil { // implicit flush
+			fmt.Printf("failed to release queue in buffer: %+v \n", err)
 		}
+		AddEventToSequence(event)
 		evtList[j] = event
 		j += 1
 
 		// Synchronize
 		if Synchronous {
-			if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
-				log.Printf("Wait for buffer failed: %+v \n", err)
+			if err = WaitLastMarker(); err != nil {
+				log.Printf("wait for buffer failed: %+v \n", err)
 			}
 		}
 	}
 
-	ClLastEvent = evtList
+	UpdateLastEventList(evtList)
+
 	outBuffer := data.SliceFromPtrs(size, data.GPUMemory, ptrs)
 	return outBuffer
 }
@@ -113,8 +116,8 @@ func FreeBuffers() {
 	var err error
 
 	// synchronize to all events
-	if err = cl.WaitForEvents(ClLastEvent); err != nil {
-		log.Printf("failed to wait for last event in freebuffers: %+v \n", err)
+	if err = WaitLastMarker(); err != nil {
+		log.Printf("failed to wait for last marker in freebuffers: %+v \n", err)
 	}
 	for _, size := range buf_pool {
 		for i := range size {
@@ -126,8 +129,5 @@ func FreeBuffers() {
 	buf_pool = make(map[int][]unsafe.Pointer)
 	buf_check = make(map[unsafe.Pointer]struct{})
 
-	ClLastEvent = make([]*cl.Event, 1)
-	if ClLastEvent[0], err = ClCmdQueue.EnqueueMarkerWithWaitList(nil); err != nil {
-		log.Printf("failed to enqueue marker in freebuffers(): %+v \n", err)
-	}
+	ClLastEvent = []*cl.Event{ClInitMarker}
 }

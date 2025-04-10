@@ -1,7 +1,6 @@
 package opencl
 
 import (
-	cl "github.com/seeder-research/uMagNUS/cl"
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -18,8 +17,9 @@ func Minimize(m, m0, torque *data.Slice, dt float32) {
 	event := k_minimize_async(m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
 		m0.DevPtr(X), m0.DevPtr(Y), m0.DevPtr(Z),
 		torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
-		dt, N, cfg, ClCmdQueue, evtWL)
+		dt, N, cfg, evtWL)
 
-	// set event marker
-	ClLastEvent = []*cl.Event{event}
+	// set event markers
+	AddEventToSequence(event)
+	UpdateLastEventSingle(event)
 }
