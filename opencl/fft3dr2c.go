@@ -65,7 +65,7 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in fft3dr2c.execasync: %+v \n", err)
+		log.Printf("failed to release queue in fft3dr2c.execasync: %+v \n", err)
 	}
 
 	// set event markers

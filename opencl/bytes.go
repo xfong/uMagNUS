@@ -49,7 +49,7 @@ func NewBytes(Len int) *Bytes {
 	}
 
 	if err = queue.Release(); err != nil {// implicit flush
-		fmt.Printf("failed to release queue in newbytes: %+v \n", err)
+		log.Printf("failed to release queue in newbytes: %+v \n", err)
 	}
 
 	// set event markers

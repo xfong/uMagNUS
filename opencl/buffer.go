@@ -72,7 +72,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 
 		if err = queue.Release(); err != nil { // implicit flush
-			fmt.Printf("failed to release queue in buffer: %+v \n", err)
+			log.Printf("failed to release queue in buffer: %+v \n", err)
 		}
 		AddEventToSequence(event)
 		evtList[j] = event
