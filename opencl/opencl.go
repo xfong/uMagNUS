@@ -115,6 +115,10 @@ func InitMarkers() {
 		log.Panicf("failed to enqueue marker in InitMarkers: %+v \n", err)
 	}
 
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue in InitMarkers: %+v \n", err)
+	}
+
 	// update
 	ClInitMarker, ClLastMarker = marker, marker
 	ClLastEvent = []*cl.Event{marker}
@@ -134,6 +138,10 @@ func AddEventToSequence(ev *cl.Event) {
 	if marker, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{ClLastMarker, ev}); err != nil {
 		fmt.Printf("failed to enqueue marker in addeventtosequence: %+v \n", err)
 		return
+	}
+
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue in AddEventToSequence: %+v \n", err)
 	}
 
 	ClLastMarker = marker
