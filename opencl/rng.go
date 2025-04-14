@@ -132,14 +132,14 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 		if g.supply >= demand {
 			// create command queue and execute
 			if queue, err = CreateCommandQueue(); err != nil {
-				log.Panic("failed to create command queue in uniform random numbers: %+v \n", err)
+				log.Panicf("failed to create command queue in uniform random numbers: %+v \n", err)
 			}
 			if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*demand, evtWL); err != nil {
-				fmt.Printf("enqueuecopybuffer failed in copying uniform random numbers: %+v \n", err)
+				log.Panicf("enqueuecopybuffer failed in copying uniform random numbers: %+v \n", err)
 			}
 
 			if err = queue.Release(); err != nil { // implicit flush
-				fmt.Printf("failed to release queue in uniform random numbers: %+v \n", err)
+				log.Panicf("failed to release queue in uniform random numbers: %+v \n", err)
 			}
 
 			g.sup_offset += demand
@@ -148,14 +148,14 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 		} else {
 			// create command queue and execute
 			if queue, err = CreateCommandQueue(); err != nil {
-				log.Panic("create command queue in uniform random numbers failed: %+v \n", err)
+				log.Panicf("create command queue in uniform random numbers failed: %+v \n", err)
 			}
 			if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*g.supply, evtWL); err != nil {
-				fmt.Printf("enqueuecopybuffer in copying uniform random numbers failed: %+v \n", err)
+				log.Panicf("enqueuecopybuffer in copying uniform random numbers failed: %+v \n", err)
 			}
 
 			if err = queue.Release(); err != nil { // implicit flush
-				fmt.Printf("failed to release queue in uniform random numbers: %+v \n", err)
+				log.Panicf("failed to release queue in uniform random numbers: %+v \n", err)
 			}
 
 			demand -= g.supply
@@ -206,14 +206,14 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 		if g.supply >= demand {
 			// create command queue and execute
 			if queue, err = CreateCommandQueue(); err != nil {
-				log.Panic("failed to create command queue in normal random numbers: %+v \n", err)
+				log.Panicf("failed to create command queue in normal random numbers: %+v \n", err)
 			}
 			if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*demand, evtWL); err != nil {
-				fmt.Printf("enqueuecopybuffer failed in copying normal random numbers: %+v \n", err)
+				log.Panicf("enqueuecopybuffer failed in copying normal random numbers: %+v \n", err)
 			}
 
 			if err = queue.Release(); err != nil { // implicit flush
-				fmt.Printf("failed to release queue in normal random numbers: %+v \n", err)
+				log.Panicf("failed to release queue in normal random numbers: %+v \n", err)
 			}
 
 			g.sup_offset += demand
@@ -222,14 +222,14 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 		} else {
 			// create command queue and execute
 			if queue, err = CreateCommandQueue(); err != nil {
-				log.Panic("create command queue in normal random numbers failed: %+v \n", err)
+				log.Panicf("create command queue in normal random numbers failed: %+v \n", err)
 			}
 			if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(g.buf.DevPtr(0)), (*cl.MemObject)(data), SIZEOF_FLOAT32*g.sup_offset, SIZEOF_FLOAT32*demand_offset, SIZEOF_FLOAT32*g.supply, evtWL); err != nil {
-				fmt.Printf("enqueuecopybuffer in copying normal random numbers failed: %+v \n", err)
+				log.Panicf("enqueuecopybuffer in copying normal random numbers failed: %+v \n", err)
 			}
 
 			if err = queue.Release(); err != nil { // implicit flush
-				fmt.Printf("failed to release queue in normal random numbers: %+v \n", err)
+				log.Panicf("failed to release queue in normal random numbers: %+v \n", err)
 			}
 
 			demand -= g.supply

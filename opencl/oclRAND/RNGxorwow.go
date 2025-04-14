@@ -43,7 +43,10 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Even
 			log.Fatalln("Unable to write jump matrices to device: ", err)
 		}
 
-		queue.Release() // implicit flush
+		if err = queue.Release(); err != nil { // implicit flush
+			log.Panicf("failed to release queue in xorwow.init: %+v \n", err)
+		}
+
 	}
 
 	// Seed the RNG

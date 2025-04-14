@@ -44,7 +44,7 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush to device
-		fmt.Printf("failed to release queue: %+v \n", err)
+		log.Panicf("failed to release queue: %+v \n", err)
 	}
 
 	return KernEvent
@@ -131,12 +131,12 @@ func AddEventToSequence(ev *cl.Event) {
 	var marker *cl.Event
 
 	if queue, err = CreateCommandQueue(); err != nil {
-		fmt.Printf("failed to create command queue in addeventtosequence: %+v \n", err)
+		log.Panicf("failed to create command queue in addeventtosequence: %+v \n", err)
 		return
 	}
 
 	if marker, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{ClLastMarker, ev}); err != nil {
-		fmt.Printf("failed to enqueue marker in addeventtosequence: %+v \n", err)
+		log.Panicf("failed to enqueue marker in addeventtosequence: %+v \n", err)
 		return
 	}
 

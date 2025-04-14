@@ -67,12 +67,12 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 			log.Panicf("failed to create command queue in buffer: %+v \n", err)
 		}
 		if event, err = queue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
-			log.Printf("CreateEmptyBuffer failed in buffer: %+v \n", err)
+			log.Panicf("CreateEmptyBuffer failed in buffer: %+v \n", err)
 		}
 		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 
 		if err = queue.Release(); err != nil { // implicit flush
-			log.Printf("failed to release queue in buffer: %+v \n", err)
+			log.Panicf("failed to release queue in buffer: %+v \n", err)
 		}
 		AddEventToSequence(event)
 		evtList[j] = event

@@ -47,14 +47,14 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 
 		// create command queue and zero the buffer (needed??)
 		if queue, err = CreateCommandQueue(); err != nil {
-			log.Panic("failed to create command queue in newslice: %+v \n", err)
+			log.Panicf("failed to create command queue in newslice: %+v \n", err)
 		}
 		if event, err = queue.EnqueueFillBuffer(tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
-			fmt.Printf("EnqueueFillBuffer failed in newslice: %+v \n", err)
+			log.Panicf("EnqueueFillBuffer failed in newslice: %+v \n", err)
 		}
 
 		if err = queue.Release(); err != nil { // implicit flush
-			fmt.Printf("failed to release queue in newSlice: %+v \n", err)
+			log.Panicf("failed to release queue in newSlice: %+v \n", err)
 		}
 
 		// set event marker
@@ -103,14 +103,14 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in memcpyDtoH: %+v \n", err)
+		log.Panicf("failed to create command queue in memcpyDtoH: %+v \n", err)
 	}
 	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, evtWL); err != nil {
-		fmt.Printf("EnqueueReadBuffer in memcpyDtoH failed: %+v \n", err)
+		log.Panicf("EnqueueReadBuffer in memcpyDtoH failed: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in memcpyDtoH: %+v \n", err)
+		log.Panicf("failed to release queue in memcpyDtoH: %+v \n", err)
 	}
 
 	// set event markers
@@ -146,14 +146,14 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in memcpyHtoD: %+v \n", err)
+		log.Panicf("failed to create command queue in memcpyHtoD: %+v \n", err)
 	}
 	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(dst), false, 0, bytes, src, evtWL); err != nil {
-		fmt.Printf("EnqueueWriteBuffer in memcpyHtoD failed: %+v \n", err)
+		log.Panicf("EnqueueWriteBuffer in memcpyHtoD failed: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in memcpyHtoD: %+v \n", err)
+		log.Panicf("failed to release queue in memcpyHtoD: %+v \n", err)
 	}
 
 	// set event marker
@@ -187,14 +187,14 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in memcpy: %+v \n", err)
+		log.Panicf("failed to create command queue in memcpy: %+v \n", err)
 	}
 	if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(src), (*cl.MemObject)(dst), 0, 0, bytes, evtWL); err != nil {
-		fmt.Printf("EnqueueCopyBuffer in memcpy failed: %+v \n", err)
+		log.Panicf("EnqueueCopyBuffer in memcpy failed: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in memcpy: %+v \n", err)
+		log.Panicf("failed to release queue in memcpy: %+v \n", err)
 	}
 
 	// set event markers
@@ -235,14 +235,14 @@ func Memset(s *data.Slice, val ...float32) {
 
 		// create command queue and execute
 		if queue, err = CreateCommandQueue(); err != nil {
-			log.Panic("failed to create command queue in memset: %+v \n", err)
+			log.Panicf("failed to create command queue in memset: %+v \n", err)
 		}
 		if event, err = queue.EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
-			fmt.Printf("EnqueueFillBuffer in memset failed: %+v \n", err)
+			log.Panicf("EnqueueFillBuffer in memset failed: %+v \n", err)
 		}
 
 		if err = queue.Release(); err != nil { // implicit flush
-			fmt.Printf("failed to release queue in memset: %+v \n", err)
+			log.Panicf("failed to release queue in memset: %+v \n", err)
 		}
 
 		// set event markers
@@ -293,14 +293,14 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in setelem: %+v \n", err)
+		log.Panicf("failed to create command queue in setelem: %+v \n", err)
 	}
 	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
-		fmt.Printf("setelem failed: %+v \n", err)
+		log.Panicf("setelem failed: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in setelem: %+v \n", err)
+		log.Panicf("failed to release queue in setelem: %+v \n", err)
 	}
 
 	// set event markers
@@ -333,14 +333,14 @@ func GetElem(s *data.Slice, comp int, index int) float32 {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in getelem: %+v \n", err)
+		log.Panicf("failed to create command queue in getelem: %+v \n", err)
 	}
 	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
-		fmt.Printf("EnqueueReadBuffer failed: %+v \n", err)
+		log.Panicf("EnqueueReadBuffer failed: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in getelem: %+v \n", err)
+		log.Panicf("failed to release queue in getelem: %+v \n", err)
 	}
 
 	// set event markers

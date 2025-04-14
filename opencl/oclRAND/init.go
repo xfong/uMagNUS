@@ -36,7 +36,7 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *
 
 	// get command queue
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panicf("failed to create command queue in oclrng.launchkernel: %+v \n", err)
+		log.Panicf("failed to create command queue in oclrand.launchkernel: %+v \n", err)
 	}
 
 	// execute
@@ -45,7 +45,9 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *
 		return nil
 	}
 
-	queue.Release() // implicit flush
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue in oclrand.launchkernel: %+v \n", err)
+	}
 
 	return event
 }

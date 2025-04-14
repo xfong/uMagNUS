@@ -42,14 +42,14 @@ func NewBytes(Len int) *Bytes {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in newbytes: %+v \n", err)
+		log.Panicf("failed to create command queue in newbytes: %+v \n", err)
 	}
 	if event, err = queue.EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, evtWL); err != nil {
-		panic(err)
+		log.Panicf("failed to fill buffer in newbytes: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil {// implicit flush
-		log.Printf("failed to release queue in newbytes: %+v \n", err)
+		log.Panicf("failed to release queue in newbytes: %+v \n", err)
 	}
 
 	// set event markers
@@ -58,7 +58,7 @@ func NewBytes(Len int) *Bytes {
 
 	if Synchronous { // debug
 		if err = WaitLastMarker(); err != nil {
-			log.Panic("wait for last marker failed in newbytes:", err)
+			log.Printf("wait for last marker failed in newbytes:", err)
 		}
 		timer.Stop("newbytes")
 	}
@@ -108,14 +108,14 @@ func (dst *Bytes) Set(index int, value byte) {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in bytes.set: %+v \n", err)
+		log.Panicf("failed to create command queue in bytes.set: %+v \n", err)
 	}
 	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), evtWL); err != nil {
-		panic(err)
+		log.Panicf("failed to fill buffer in bytes.set: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		log.Printf("failed to release queue in bytes.set: %+v \n", err)
+		log.Panicf("failed to release queue in bytes.set: %+v \n", err)
 	}
 
 	// set event markers
@@ -158,14 +158,14 @@ func (src *Bytes) Get(index int) byte {
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
-		log.Panic("failed to create command queue in btyes.get: %+v \n", err)
+		log.Panicf("failed to create command queue in bytes.get: %+v \n", err)
 	}
 	if event, err = queue.EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, evtWL); err != nil {
-		panic(err)
+		log.Panicf("failed to read buffer in bytes.get: %+v \n", err)
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		log.Printf("failed to release queue in bytes.get: %+v \n", err)
+		log.Panicf("failed to release queue in bytes.get: %+v \n", err)
 	}
 
 	// set event markers

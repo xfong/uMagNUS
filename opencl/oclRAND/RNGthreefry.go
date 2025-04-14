@@ -51,7 +51,9 @@ func (p *THREEFRY_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Ev
 		log.Fatalln("failed to write seed buffer to device in threefry.init: %+v \n", err)
 	}
 
-	queue.Release() // implicit flush
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue in threefry.init: %+v \n", err)
+	}
 
 	// seed the RNG
 	event = k_threefry_seed_async(unsafe.Pointer(p.Status_key), unsafe.Pointer(p.Status_counter),
