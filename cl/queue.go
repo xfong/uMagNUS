@@ -59,8 +59,9 @@ func retainCommandQueue(q *CommandQueue) error {
 
 func releaseCommandQueue(q *CommandQueue) error {
 	if q.clQueue != nil {
+		err := toError(C.clReleaseCommandQueue(q.clQueue))
 		q.clQueue = nil
-		return toError(C.clReleaseCommandQueue(q.clQueue))
+		return err
 	}
 	return nil
 }
