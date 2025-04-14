@@ -115,7 +115,7 @@ func (dst *Bytes) Set(index int, value byte) {
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in bytes.set: %+v \n", err)
+		log.Printf("failed to release queue in bytes.set: %+v \n", err)
 	}
 
 	// set event markers
@@ -165,7 +165,7 @@ func (src *Bytes) Get(index int) byte {
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		fmt.Printf("failed to release queue in bytes.get: %+v \n", err)
+		log.Printf("failed to release queue in bytes.get: %+v \n", err)
 	}
 
 	// set event markers
