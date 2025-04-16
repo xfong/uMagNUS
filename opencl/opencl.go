@@ -144,6 +144,12 @@ func AddEventToSequence(ev *cl.Event) {
 		log.Panicf("failed to release queue in AddEventToSequence: %+v \n", err)
 	}
 
+	if ClLastMarker != ClInitMarker {
+		if err = ClLastMarker.Release(); err != nil {
+			log.Printf("failed to release marker event: %+v \n", err)
+		}
+	}
+
 	ClLastMarker = marker
 }
 
@@ -155,20 +161,39 @@ func WaitLastMarker() error {
 }
 
 func UpdateLastEventSingle(ev *cl.Event) {
+	var err error
+
 	if ev == nil {
 		fmt.Printf("ev cannot be nil in updatelasteventsingle! \n")
 		return
+	}
+
+	for _, v := range ClLastEvent {
+		if v != ClInitMarker {
+			if err = v.Release(); err != nil {
+				log.Printf("failed to release event in updatelasteventsingle: %+v \n", err)
+			}
+		}
 	}
 
 	ClLastEvent = []*cl.Event{ev}
 }
 
 func UpdateLastEventList(evList []*cl.Event) {
+	var err error
+
 	if evList == nil {
 		fmt.Printf("ev cannot be nil in updatelasteventlist! \n")
 		return
 	}
 
+	for _, v := range ClLastEvent {
+		if v != ClInitMarker {
+			if err = v.Release(); err != nil {
+				log.Printf("failed to release event in updatelasteventlist: %+v \n", err)
+			}
+		}
+	}
 	if len(evList) > 0 {
 		ClLastEvent = evList
 	} else {
