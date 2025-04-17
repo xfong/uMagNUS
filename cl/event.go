@@ -64,17 +64,20 @@ func go_set_event_callback(event C.cl_event, callback_status C.cl_int, user_data
 	go_set_event_callback_func[c_user_data[1]](event, callback_status, c_user_data[0])
 }
 
-func releaseEvent(ev *Event) {
+func releaseEvent(ev *Event) error {
 	if ev.clEvent != nil {
-		C.clReleaseEvent(ev.clEvent)
+		tmpEv := ev.clEvent
 		ev.clEvent = nil
+		return toError(C.clReleaseEvent(tmpEv))
 	}
+	return nil
 }
 
-func retainEvent(ev *Event) {
+func retainEvent(ev *Event) error {
 	if ev.clEvent != nil {
-		C.clRetainEvent(ev.clEvent)
+		return toError(C.clRetainEvent(ev.clEvent))
 	}
+	return nil
 }
 
 // Waits on the host thread for commands identified by event objects in
