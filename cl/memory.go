@@ -137,6 +137,8 @@ type MappedMemObject struct {
 type MemObject struct {
 	clMem C.cl_mem
 	size  int
+	//wrEv  C.cl_event // latest event for command writing to memobject (producer)
+	//rdMkr C.cl_event // latest event marker for commands reading memobject (consumer)
 }
 
 ////////////////// Supporting Types ////////////////
@@ -424,6 +426,114 @@ func (b *MemObject) SetMemObjectDestructorCallback(user_data unsafe.Pointer) err
 	}
 	return toError(C.CL_INVALID_MEM_OBJECT)
 }
+
+/*
+Access to memobjects based on a producer-consumer model can be used for scheduling
+opencl commands.
+
+1. For every read to the memobject, there is a dependence on the last command that
+   wrote into it (avoid the RAW hazard)
+
+2. For every write to the memobject, there is a dependence on the last
+   command that wrote into it (to ensure writes occur in the correct sequence) and all
+   commands that are reading the memobject before this write (make sure reads see the
+   previous data).
+
+Based on these observations, we need to track only:
+1. The latest event for writing into the memobject (simple to track using an event),
+   and
+2. An event that completes only after all preceding reads have completed. These reads
+   may be completed in any order. This means we need a special marker that has two 
+   dependencies:
+    	i.   This special marker is initialized to a completed event.
+		ii.  When a read to the memobject is performed, enqueue a marker that depends on
+		     the special marker and the event corresponding to the read.
+	    iii. Release the special marker.
+		iv.  Update the special marker with the marker in step ii.
+*/
+
+/*
+// return event corresponding to latest command writing into memobject 
+func (b *MemObject) GetWriteEvent() *Event {
+	return newEvent(b.wrEv)
+}
+
+// set event corresponding to latest command writing into memobject 
+func (b *MemObject) SetWriteEvent(ev *Event) {
+	if ev != nil {
+		b.wrEv = ev.clEvent
+	}
+}
+
+// return marker tracking reads into memobject 
+func (b *MemObject) GetReadMarker() *Event {
+	return newEvent(b.rdMkr)
+}
+
+// set marker tracking reads into memobject 
+func (b *MemObject) SetReadMarker(ev *Event) {
+	if ev != nil {
+		b.rdMkr = ev.clEvent
+	}
+}
+
+// return events for write dependence
+func (b *MemObject) GetWriteDependencies() []*Event {
+	tmpEv := []*cl.Event{}
+    tmpEv = append(tmpEv, b.GetReadMarker())
+	tmpEv = append(tmpEv, b.GetWriteMarker())
+	return tmpEv
+}
+
+// return events for read dependence
+func (b *MemObject) GetReadDependencies() []*Event {
+	tmpEv := []*cl.Event{}
+	tmpEv = append(tmpEv, b.GetWriteMarker())
+	return tmpEv
+}
+
+// function to update write dependence
+func (b *MemObject) SetWriteDependence(ev *Event) error {
+	var err error
+
+	if ev == nil {
+		return nil
+	}
+	tmpEv := b.GetWriteEvent()
+	if err = tmpEv.Release(); err != nil {
+		fm.Printf("failed to release event in setwritedependence: %+v \n", err)
+		return toError(err)
+	}
+	b.SetWriteEvent(ev)
+	return nil
+}
+
+// function to update read dependence
+func (b *MemObject) SetReadDependence(q *CommandQueue, ev *Event) error {
+	var error
+	var tmpEv1 *Event
+	var tmpEv2 *Event
+
+	if q == nil || ev == nil {
+		return nil
+	}
+	tmpEv1 = b.GetReadMarker()
+	if tmpEv2, err = q.EnqueueMarkerWithWaitList([]*Event{ev, tmpEv1}); err != nil {
+		fmt.Printf("failed to enqueue marker in setreaddependence: %+v \n", err)
+		return toError(err)
+	}
+	if err = q.Flush(); err != nil {
+		fmt.Printf("failed to flush queue in setreaddependence: %+v \n", err)
+		return toError(err)
+	}
+	if err = tmpEv1.Release(); err != nil {
+		fmt.Printf("failed to release marker in setreaddependence: %+v \n", err)
+		return toError(err)
+	}
+	b.SetReadMarker(tmpEv2)
+	return nil
+}
+*/
 
 // Enqueues a command to map a region of the buffer object given by buffer into the host address space and returns a pointer to this mapped region.
 func (q *CommandQueue) EnqueueMapBuffer(buffer *MemObject, blocking bool, flags MapFlag, offset, size int, eventWaitList []*Event) (*MappedMemObject, *Event, error) {
