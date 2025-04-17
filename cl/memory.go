@@ -481,14 +481,14 @@ func (b *MemObject) SetReadMarker(ev *Event) {
 func (b *MemObject) GetWriteDependencies() []*Event {
 	tmpEv := []*cl.Event{}
     tmpEv = append(tmpEv, b.GetReadMarker())
-	tmpEv = append(tmpEv, b.GetWriteMarker())
+	tmpEv = append(tmpEv, b.GetWriteEvent())
 	return tmpEv
 }
 
 // return events for read dependence
 func (b *MemObject) GetReadDependencies() []*Event {
 	tmpEv := []*cl.Event{}
-	tmpEv = append(tmpEv, b.GetWriteMarker())
+	tmpEv = append(tmpEv, b.GetWriteEvent())
 	return tmpEv
 }
 
