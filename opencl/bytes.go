@@ -193,9 +193,6 @@ func (b *Bytes) Free() {
 		log.Printf("failed to wait for last marker in bytes.free(): %+v \n", err)
 	}
 
-	ClLastEvent = []*cl.Event{ClInitMarker}
-	ClLastMarker = ClInitMarker
-
 	if b.Ptr != nil {
 		tmpObj := (*cl.MemObject)(b.Ptr)
 		tmpObj.Release()

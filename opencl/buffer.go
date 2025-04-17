@@ -129,5 +129,4 @@ func FreeBuffers() {
 	buf_pool = make(map[int][]unsafe.Pointer)
 	buf_check = make(map[unsafe.Pointer]struct{})
 
-	ClLastEvent = []*cl.Event{ClInitMarker}
 }

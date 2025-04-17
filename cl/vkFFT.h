@@ -28119,8 +28119,10 @@ static inline VkFFTResult VkFFT_transferDataFromCPU(VkFFTApplication* app, void*
 		return VKFFT_ERROR_FAILED_TO_COPY;
 	}
 	res = clReleaseCommandQueue(commandQueue); // implicit flush
-	app->configuration.queueEvent = ev;
 	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	res = clReleaseEvent(app->configuration.queueEvent);
+	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	app->configuration.queueEvent = ev;
 #elif(VKFFT_BACKEND==4)
 	ze_result_t res = ZE_RESULT_SUCCESS;
 	void* buffer = ((void**)input_buffer)[0];
@@ -28238,8 +28240,10 @@ static inline VkFFTResult VkFFT_transferDataToCPU(VkFFTApplication* app, void* c
 		return VKFFT_ERROR_FAILED_TO_COPY;
 	}
 	res = clReleaseCommandQueue(commandQueue); // implicit flush
-	app->configuration.queueEvent = ev;
 	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	res = clReleaseEvent(app->configuration.queueEvent);
+	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	app->configuration.queueEvent = ev;
 #elif(VKFFT_BACKEND==4)
 	ze_result_t res = ZE_RESULT_SUCCESS;
 	void* buffer = ((void**)output_buffer)[0];
@@ -40911,9 +40915,11 @@ static inline VkFFTResult dispatchEnhanced(VkFFTApplication* app, VkFFTAxis* axi
 				if (result != CL_SUCCESS) {
 					return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
 				}
-
 				result = clFlush(app->configuration.commandQueue[0]);
-
+				if (result != CL_SUCCESS) {
+					return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
+				}
+				result = clReleaseEvent(app->configuration.queueEvent);
 				if (result != CL_SUCCESS) {
 					return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
 				}
