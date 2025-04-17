@@ -119,12 +119,12 @@ func eventListPtr(el []*Event) (*C.cl_event, int) {
 }
 
 // ////////////// Abstract Functions ///////////////
-func (e *Event) Release() {
-	releaseEvent(e)
+func (e *Event) Release() error {
+	return releaseEvent(e)
 }
 
-func (e *Event) Retain() {
-	retainEvent(e)
+func (e *Event) Retain() error {
+	return retainEvent(e)
 }
 
 func (e *Event) GetEventProfilingInfo(paramName ProfilingInfo) (int64, error) {
