@@ -241,10 +241,11 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 		initReduceBuf()
 	}
 	buf := <-reduceBuffers
+	evtWL := ClLastEvent
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panic("failed to create command queue in reduceBuf: %+v \n", err)
 	}
-	if event, err = queue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, nil); err != nil {
+	if event, err = queue.EnqueueFillBuffer(buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, SIZEOF_FLOAT32, evtWL); err != nil {
 		fmt.Printf("reduceBuf failed: %+v \n", err)
 		return nil
 	}
