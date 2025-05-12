@@ -241,7 +241,11 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 		initReduceBuf()
 	}
 	buf := <-reduceBuffers
+
+	// sequence command according to queue
 	evtWL := ClLastEvent
+
+	// execute (i.e., zero buffer. needed?? why not zero on return of buffer to pool?)
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panic("failed to create command queue in reduceBuf: %+v \n", err)
 	}
@@ -270,6 +274,8 @@ func copyback(buf unsafe.Pointer) float32 {
 }
 
 // initialize pool of 1-float and N-float OPENCL reduction buffers
+// should we use sub-buffers instead? then we can zero all buffers
+// using a single command
 func initReduceBuf() {
 	const N = 128
 	reduceBuffers = make(chan *cl.MemObject, N)
