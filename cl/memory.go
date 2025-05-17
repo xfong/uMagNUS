@@ -716,6 +716,14 @@ func (mobj *MemObject) CreateSubBuffer(flags MemFlag, origin, bSize int) (*MemOb
 	return newMemObject(clBuffer, bSize), nil
 }
 
+func (mobj *MemObject) CreateSubBufferFloat32(flags MemFlag, origin, bSize int) (*MemObject, error) {
+	return mobj.CreateSubBuffer(flags MemFlag, 4*origin, 4*bSize)
+}
+
+func (mobj *MemObject) CreateSubBufferFloat64(flags MemFlag, origin, bSize int) (*MemObject, error) {
+	return mobj.CreateSubBuffer(flags MemFlag, 8*origin, 8*bSize)
+}
+
 func (q *CommandQueue) EnqueueFillBuffer(buffer *MemObject, pattern unsafe.Pointer, patternSize, offset, size int, eventWaitList []*Event) (*Event, error) {
 	var event C.cl_event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
