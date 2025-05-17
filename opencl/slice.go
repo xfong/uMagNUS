@@ -30,7 +30,7 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 	fillWait = []*cl.Event{}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	for c := range ptrs {
 		tmp_buf, err = ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
@@ -40,15 +40,15 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 		ptrs[c] = unsafe.Pointer(tmp_buf)
 
 		if Synchronous { // debug
-			if err = WaitLastMarker(); err != nil {
-				fmt.Printf("failed to wait for last marker in newslice: %+v \n", err)
-			}
+			WaitCommandSequence()
 		}
 
 		// create command queue and zero the buffer (needed??)
 		if queue, err = CreateCommandQueue(); err != nil {
 			log.Panicf("failed to create command queue in newslice: %+v \n", err)
 		}
+
+		// execute
 		if event, err = queue.EnqueueFillBuffer(tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 			log.Panicf("EnqueueFillBuffer failed in newslice: %+v \n", err)
 		}
@@ -58,19 +58,17 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 		}
 
 		// set event marker
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 		fillWait = append(fillWait, event)
 
 		if Synchronous { // debug
-			if err = WaitLastMarker(); err != nil {
-				fmt.Printf("wait for last marker in newslice failed: %+v \n", err)
-			}
+			WaitCommandSequence()
 		}
 
 	}
 
 	// set event marker
-	UpdateLastEventList(fillWait)
+	UpdateLatestCmdList(fillWait)
 
 	dataPtr := data.SliceFromPtrs(size, memType, ptrs)
 	return dataPtr
@@ -92,19 +90,18 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 
 	// debug
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in memcpyDtoH: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("memcpyDtoH")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in memcpyDtoH: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, evtWL); err != nil {
 		log.Panicf("EnqueueReadBuffer in memcpyDtoH failed: %+v \n", err)
 	}
@@ -114,11 +111,11 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	// sync copy (needed??)
-	if err = WaitLastEvent(); err != nil {
+	if err = WaitLatestCmd(); err != nil {
 		fmt.Printf("wait for last event in memcpyDtoH failed: %+v \n", err)
 	}
 
@@ -135,14 +132,12 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 
 	// debug
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in memcpyHtoD: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("memcpyHtoD")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
@@ -157,12 +152,12 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 	}
 
 	// set event marker
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous {
 		// sync copy
-		if err = WaitLastEvent(); err != nil {
+		if err = WaitLatestCmd(); err != nil {
 			fmt.Printf("wait for last event in memcpyHtoD failed: %+v \n", err)
 		}
 		timer.Stop("memcpyHtoD")
@@ -176,19 +171,18 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 
 	// debug
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in memcpy: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("memcpy")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in memcpy: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(src), (*cl.MemObject)(dst), 0, 0, bytes, evtWL); err != nil {
 		log.Panicf("EnqueueCopyBuffer in memcpy failed: %+v \n", err)
 	}
@@ -198,12 +192,12 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous {
 		// sync copy
-		if err = WaitLastEvent(); err != nil {
+		if err = WaitLatestCmd(); err != nil {
 			fmt.Printf("wait for last event in memcpy failed: %+v \n", err)
 		}
 		timer.Stop("memcpy")
@@ -219,16 +213,14 @@ func Memset(s *data.Slice, val ...float32) {
 
 	// debug
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in memset: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("memset")
 	}
 
 	util.Argument(len(val) == s.NComp())
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	evtList := []*cl.Event{}
 	for c, v := range val {
@@ -237,6 +229,7 @@ func Memset(s *data.Slice, val ...float32) {
 		if queue, err = CreateCommandQueue(); err != nil {
 			log.Panicf("failed to create command queue in memset: %+v \n", err)
 		}
+		// execute
 		if event, err = queue.EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
 			log.Panicf("EnqueueFillBuffer in memset failed: %+v \n", err)
 		}
@@ -247,17 +240,15 @@ func Memset(s *data.Slice, val ...float32) {
 
 		// set event markers
 		evtList = append(evtList, event)
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 
 		if Synchronous { // debug
-			if err = cl.WaitForEvents(evtList); err != nil {
-				fmt.Printf("wait for last marker in memset failed: %+v \n", err)
-			}
+			WaitCommandSequence()
 		}
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 
 	// debug
 	if Synchronous {
@@ -282,19 +273,18 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 	f := value
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in setelem: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("setelem")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in setelem: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
 		log.Panicf("setelem failed: %+v \n", err)
 	}
@@ -304,11 +294,11 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous { // debug
-		if err = WaitLastEvent(); err != nil {
+		if err = WaitLatestCmd(); err != nil {
 			fmt.Printf("wait for last marker in setelem failed: %+v \n", err)
 		}
 		timer.Stop("setelem")
@@ -322,19 +312,18 @@ func GetElem(s *data.Slice, comp int, index int) float32 {
 	var f float32
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("wait for last marker in getelem failed: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("getelem")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in getelem: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
 		log.Panicf("EnqueueReadBuffer failed: %+v \n", err)
 	}
@@ -344,11 +333,11 @@ func GetElem(s *data.Slice, comp int, index int) float32 {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	// Must sync (needed??)
-	if err = WaitLastEvent(); err != nil {
+	if err = WaitLatestCmd(); err != nil {
 		fmt.Printf("failed to wait for last marker in getelem: %+v \n", err)
 	}
 

@@ -31,19 +31,18 @@ func NewBytes(Len int) *Bytes {
 	zeroPattern := uint8(0)
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			log.Printf("failed to wait for last marker in newbytes: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("newbytes")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in newbytes: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, evtWL); err != nil {
 		log.Panicf("failed to fill buffer in newbytes: %+v \n", err)
 	}
@@ -53,13 +52,11 @@ func NewBytes(Len int) *Bytes {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			log.Printf("wait for last marker failed in newbytes:", err)
-		}
+		WaitCommandSequence()
 		timer.Stop("newbytes")
 	}
 
@@ -97,19 +94,18 @@ func (dst *Bytes) Set(index int, value byte) {
 	src := value
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			log.Printf("failed to wait for last marker in bytes.set: %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("bytesSet")
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in bytes.set: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), evtWL); err != nil {
 		log.Panicf("failed to fill buffer in bytes.set: %+v \n", err)
 	}
@@ -119,13 +115,11 @@ func (dst *Bytes) Set(index int, value byte) {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			log.Panic("wait for last marker failed in bytes.set:", err)
-		}
+		WaitCommandSequence()
 		timer.Stop("bytesSet")
 	}
 
@@ -134,8 +128,7 @@ func (dst *Bytes) Set(index int, value byte) {
 // Get one element.
 // data.Index can be used to find the index for x,y,z.
 // TODO: return as pointer and use events for synchronizing, which will allow us to wait on a
-//
-//	list of events rather than an individual event
+//	     list of events rather than an individual event
 func (src *Bytes) Get(index int) byte {
 	var err error
 	var event *cl.Event
@@ -147,19 +140,18 @@ func (src *Bytes) Get(index int) byte {
 	dst := make([]byte, 1)
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			log.Printf("failed to wait for last event in bytes.get(): %+v \n", err)
-		}
+		WaitCommandSequence()
 		timer.Start("bytesGet")
 	}
 
 	// sequence command ccording to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in bytes.get: %+v \n", err)
 	}
+	// execute
 	if event, err = queue.EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, evtWL); err != nil {
 		log.Panicf("failed to read buffer in bytes.get: %+v \n", err)
 	}
@@ -169,13 +161,11 @@ func (src *Bytes) Get(index int) byte {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	// Must synchronize (needed??)
-	if err = WaitLastEvent(); err != nil {
-		log.Panic("wait for last marker failed in bytes.get(): %+v \n", err)
-	}
+	WaitCommandSequence()
 
 	if Synchronous {
 		timer.Stop("bytesGet")
@@ -189,9 +179,7 @@ func (b *Bytes) Free() {
 	var err error
 
 	// Must synchronize
-	if err = WaitLastMarker(); err != nil {
-		log.Printf("failed to wait for last marker in bytes.free(): %+v \n", err)
-	}
+	WaitCommandSequence()
 
 	if b.Ptr != nil {
 		tmpObj := (*cl.MemObject)(b.Ptr)

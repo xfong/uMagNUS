@@ -32,8 +32,8 @@ var (
 	ClDevice     = (*cl.Device)(nil)       // device associated with global OpenCL context
 	ClCtx        = (*cl.Context)(nil)      // global OpenCL context
 	ClCmdQueue   = (*cl.CommandQueue)(nil) // command queues attached to global OpenCL context (needed??)
-	ClLastEvent  = []*cl.Event{}           // event for the latest device command that was enqueued (should never be nil)
-	ClLastMarker = (*cl.Event)(nil)        // latest enqueued event in the order of queue
+	ClLatestCmd  = []*cl.Event{}           // event for the latest device commands that was enqueued by a host function (should never be nil)
+	ClCmdSeqTail = (*cl.Event)(nil)        // latest enqueued event in the order of enqueue (helpful for flushing)
 	ClInitMarker = (*cl.Event)(nil)        // first event enqueued and completed
 	ClProgram    = (*cl.Program)(nil)      // handle to program in the global OpenCL context
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels

@@ -28,9 +28,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 	var queue *cl.CommandQueue
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			log.Printf("failed to wait for last marker in buffer: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	ptrs := make([]unsafe.Pointer, nComp)
@@ -47,10 +45,10 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 	buf_pool[N] = pool[:len(pool)-nFromPool]
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// allocate as much new memory as needed
-	evtList := make([]*cl.Event, nComp-nFromPool)
+	evtList := []*cl.Event{}
 	j := int(0)
 	for i := nFromPool; i < nComp; i++ {
 		if len(buf_check) >= buf_max {
@@ -66,6 +64,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		if queue, err = CreateCommandQueue(); err != nil {
 			log.Panicf("failed to create command queue in buffer: %+v \n", err)
 		}
+		// execute
 		if event, err = queue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 			log.Panicf("CreateEmptyBuffer failed in buffer: %+v \n", err)
 		}
@@ -74,19 +73,16 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		if err = queue.Release(); err != nil { // implicit flush
 			log.Panicf("failed to release queue in buffer: %+v \n", err)
 		}
-		AddEventToSequence(event)
-		evtList[j] = event
-		j += 1
+		InsertEventToCmdSeqTail(event)
+		evtList = append(evtList, event)
 
 		// Synchronize
 		if Synchronous {
-			if err = WaitLastMarker(); err != nil {
-				log.Printf("wait for buffer failed: %+v \n", err)
-			}
+			WaitCommandSequence()
 		}
 	}
 
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 
 	outBuffer := data.SliceFromPtrs(size, data.GPUMemory, ptrs)
 	return outBuffer
@@ -116,9 +112,7 @@ func FreeBuffers() {
 	var err error
 
 	// synchronize to all events
-	if err = WaitLastMarker(); err != nil {
-		log.Printf("failed to wait for last marker in freebuffers: %+v \n", err)
-	}
+	WaitCommandSequence()
 	for _, size := range buf_pool {
 		for i := range size {
 			tmpObj := (*cl.MemObject)(size[i])
