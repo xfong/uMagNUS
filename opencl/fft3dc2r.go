@@ -58,7 +58,8 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in fft3dc2r.execasync: %+v \n", err)
 	}
-	if event, err = queue.EnqueueMarkerWithWaitList(ClLastEvent); err != nil {
+	evtWL := GetLatestCmd()
+	if event, err = queue.EnqueueMarkerWithWaitList(evtWL); err != nil {
 		log.Panicf("failed to enqueue barrier in fft3dc2r.execasync: %+v \n", err)
 	}
 
@@ -67,8 +68,8 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 	p.handle.SetQueueEvent(event)
 
 	// execute
@@ -78,8 +79,8 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 
 	// set event marker
 	event = p.handle.GetQueueEvent()
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 	if Synchronous {
 		if err = WaitLastEvent(); err != nil {
 			log.Panicf("failed to wait for last event in fft3dc2r.execasync: %+v \n", err)

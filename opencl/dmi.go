@@ -21,7 +21,7 @@ func AddDMI(Beff *data.Slice, m *data.Slice, Aex_red, Dex_red SymmLUT, Msat MSli
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_adddmi_async(Beff.DevPtr(X), Beff.DevPtr(Y), Beff.DevPtr(Z),
@@ -32,6 +32,6 @@ func AddDMI(Beff *data.Slice, m *data.Slice, Aex_red, Dex_red SymmLUT, Msat MSli
 		N[X], N[Y], N[Z], mesh.PBC_code(), openBC, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

@@ -14,7 +14,7 @@ func kernMulRSymm3D_async(fftM [3]*data.Slice, Kxx, Kyy, Kzz, Kyz, Kxz, Kxy *dat
 	cfg := make3DConf([3]int{Nx, Ny, Nz})
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_kernmulRSymm3D_async(fftM[X].DevPtr(0), fftM[Y].DevPtr(0), fftM[Z].DevPtr(0),
@@ -22,8 +22,8 @@ func kernMulRSymm3D_async(fftM [3]*data.Slice, Kxx, Kyy, Kzz, Kyz, Kxz, Kxy *dat
 		Nx, Ny, Nz, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // kernel multiplication for 2D demag convolution on X and Y, exploiting full kernel symmetry.
@@ -32,7 +32,7 @@ func kernMulRSymm2Dxy_async(fftMx, fftMy, Kxx, Kyy, Kxy *data.Slice, Nx, Ny int)
 	cfg := make3DConf([3]int{Nx, Ny, 1})
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_kernmulRSymm2Dxy_async(fftMx.DevPtr(0), fftMy.DevPtr(0),
@@ -40,8 +40,8 @@ func kernMulRSymm2Dxy_async(fftMx, fftMy, Kxx, Kyy, Kxy *data.Slice, Nx, Ny int)
 		Nx, Ny, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // kernel multiplication for 2D demag convolution on Z, exploiting full kernel symmetry.
@@ -50,15 +50,15 @@ func kernMulRSymm2Dz_async(fftMz, Kzz *data.Slice, Nx, Ny int) {
 	cfg := make3DConf([3]int{Nx, Ny, 1})
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_kernmulRSymm2Dz_async(fftMz.DevPtr(0), Kzz.DevPtr(0), Nx, Ny, cfg,
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // kernel multiplication for general 1D convolution. Does not assume any symmetry.
@@ -68,13 +68,13 @@ func kernMulC_async(fftM, K *data.Slice, Nx, Ny int) {
 	cfg := make3DConf([3]int{Nx, Ny, 1})
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_kernmulC_async(fftM.DevPtr(0), K.DevPtr(0), Nx, Ny, cfg,
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

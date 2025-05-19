@@ -14,7 +14,7 @@ func ShiftX(dst, src *data.Slice, shiftX int, clampL, clampR float32) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_shiftx_async(dst.DevPtr(0), src.DevPtr(0),
@@ -23,8 +23,8 @@ func ShiftX(dst, src *data.Slice, shiftX int, clampL, clampR float32) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 func ShiftY(dst, src *data.Slice, shiftY int, clampL, clampR float32) {
@@ -34,7 +34,7 @@ func ShiftY(dst, src *data.Slice, shiftY int, clampL, clampR float32) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_shifty_async(dst.DevPtr(0), src.DevPtr(0),
@@ -43,8 +43,8 @@ func ShiftY(dst, src *data.Slice, shiftY int, clampL, clampR float32) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 func ShiftZ(dst, src *data.Slice, shiftZ int, clampL, clampR float32) {
@@ -54,7 +54,7 @@ func ShiftZ(dst, src *data.Slice, shiftZ int, clampL, clampR float32) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_shiftz_async(dst.DevPtr(0), src.DevPtr(0),
@@ -63,8 +63,8 @@ func ShiftZ(dst, src *data.Slice, shiftZ int, clampL, clampR float32) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // Like Shift, but for bytes
@@ -73,7 +73,7 @@ func ShiftBytes(dst, src *Bytes, m *data.Mesh, shiftX int, clamp byte) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_shiftbytes_async(dst.Ptr, src.Ptr,
@@ -82,8 +82,8 @@ func ShiftBytes(dst, src *Bytes, m *data.Mesh, shiftX int, clamp byte) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 func ShiftBytesY(dst, src *Bytes, m *data.Mesh, shiftY int, clamp byte) {
@@ -91,7 +91,7 @@ func ShiftBytesY(dst, src *Bytes, m *data.Mesh, shiftY int, clamp byte) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_shiftbytesy_async(dst.Ptr, src.Ptr,
@@ -100,6 +100,6 @@ func ShiftBytesY(dst, src *Bytes, m *data.Mesh, shiftY int, clamp byte) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

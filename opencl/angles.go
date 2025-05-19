@@ -11,7 +11,7 @@ func SetPhi(s *data.Slice, m *data.Slice) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute and add event to sequence
 	event := k_setPhi_async(s.DevPtr(0),
@@ -20,8 +20,8 @@ func SetPhi(s *data.Slice, m *data.Slice) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 func SetTheta(s *data.Slice, m *data.Slice) {
@@ -30,7 +30,7 @@ func SetTheta(s *data.Slice, m *data.Slice) {
 	cfg := make3DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute and add event to sequence
 	event := k_setTheta_async(s.DevPtr(0), m.DevPtr(Z),
@@ -38,6 +38,6 @@ func SetTheta(s *data.Slice, m *data.Slice) {
 		cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

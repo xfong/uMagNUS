@@ -12,13 +12,13 @@ func Normalize(vec, vol *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_normalize2_async(vec.DevPtr(X), vec.DevPtr(Y), vec.DevPtr(Z),
 		vol.DevPtr(0), N, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

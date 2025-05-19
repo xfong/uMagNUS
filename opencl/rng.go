@@ -72,7 +72,7 @@ func (g *Generator) Init(seed *uint64) {
 	g.buf_size = g.PRNG.RecommendSize()
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	if seed == nil {
@@ -82,8 +82,8 @@ func (g *Generator) Init(seed *uint64) {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if g.buf == nil {
 		g.buf = Buffer(1, [3]int{g.buf_size, 1, 1})
@@ -116,7 +116,7 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 
 	for demand > 0 {
 		// sequence command according to queue
-		evtWL := ClLastEvent
+		evtWL := GetLatestCmd()
 
 		if g.supply <= 0 {
 			// execute
@@ -164,8 +164,8 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 		}
 
 		// set event markers
-		AddEventToSequence(event)
-		UpdateLastEventSingle(event)
+		InsertEventToCmdSeqTail(event)
+		UpdateLatestCmdSingle(event)
 
 		if Synchronous { // debug
 			if err = WaitLastEvent(); err != nil {
@@ -190,7 +190,7 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 
 	for demand > 0 {
 		// sequence command according to queue
-		evtWL := ClLastEvent
+		evtWL := GetLatestCmd()
 
 		if g.supply <= 0 {
 			// execute
@@ -238,8 +238,8 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 		}
 
 		// set event markers
-		AddEventToSequence(event)
-		UpdateLastEventSingle(event)
+		InsertEventToCmdSeqTail(event)
+		UpdateLatestCmdSingle(event)
 
 		if Synchronous { // debug
 			if err = WaitLastEvent(); err != nil {

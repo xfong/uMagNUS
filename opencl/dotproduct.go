@@ -14,7 +14,7 @@ func AddDotProduct(dst *data.Slice, prefactor float32, a, b *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_dotproduct_async(dst.DevPtr(0), prefactor,
@@ -23,6 +23,6 @@ func AddDotProduct(dst *data.Slice, prefactor float32, a, b *data.Slice) {
 		N, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

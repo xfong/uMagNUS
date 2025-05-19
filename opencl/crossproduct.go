@@ -13,7 +13,7 @@ func CrossProduct(dst, a, b *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_crossproduct_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
@@ -22,6 +22,6 @@ func CrossProduct(dst, a, b *data.Slice) {
 		N, cfg, evtWL)
 
 	// set event marker
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

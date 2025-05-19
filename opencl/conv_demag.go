@@ -128,7 +128,7 @@ func zero1_async(dst *data.Slice) {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// create command queue and execute
 	if queue, err = CreateCommandQueue(); err != nil {
@@ -143,8 +143,8 @@ func zero1_async(dst *data.Slice) {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous {
 		if err = WaitLastEvent(); err != nil {

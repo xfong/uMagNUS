@@ -36,15 +36,15 @@ func Sum(in *data.Slice) float32 {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_reducesum_async(in.DevPtr(0), out, 0,
 		in.Len(), reducecfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	results := copyback(out)
 	return results
@@ -70,7 +70,7 @@ func Dot(a, b *data.Slice) float32 {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, numComp)
@@ -79,11 +79,11 @@ func Dot(a, b *data.Slice) float32 {
 			a.Len(), reducecfg, evtWL) // all components add to out
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event marker
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 
 	for c := 0; c < a.NComp(); c++ {
 		results := copyback(out[c])
@@ -109,15 +109,15 @@ func MaxAbs(in *data.Slice) float32 {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_reducemaxabs_async(in.DevPtr(0), out, 0,
 		in.Len(), reducecfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	results := copyback(out)
 	return results
@@ -143,7 +143,7 @@ func MaxDiff(a, b *data.Slice) []float32 {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, numComp)
@@ -152,11 +152,11 @@ func MaxDiff(a, b *data.Slice) []float32 {
 			a.Len(), reducecfg, evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event marker
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 
 	for c := 0; c < numComp; c++ {
 		returnVal[c] = copyback(out[c])
@@ -180,15 +180,15 @@ func MaxVecNorm(v *data.Slice) float64 {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_reducemaxvecnorm2_async(v.DevPtr(0), v.DevPtr(1), v.DevPtr(2),
 		out, 0, v.Len(), reducecfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	results := copyback(out)
 	return math.Sqrt(float64(results))
@@ -213,7 +213,7 @@ func MaxVecDiff(x, y *data.Slice) float64 {
 	}
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_reducemaxvecdiff2_async(x.DevPtr(0), x.DevPtr(1), x.DevPtr(2),
@@ -221,8 +221,8 @@ func MaxVecDiff(x, y *data.Slice) float64 {
 		out, 0, x.Len(), reducecfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	results := copyback(out)
 	return math.Sqrt(float64(results))
@@ -243,9 +243,9 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 	buf := <-reduceBuffers
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
-	// execute (i.e., zero buffer. needed?? why not zero on return of buffer to pool?)
+	// execute (i.e., zero buffer. needed if buffers are zeroed in initReduceBuf()?? why not zero on return of buffer to pool?)
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panic("failed to create command queue in reduceBuf: %+v \n", err)
 	}
@@ -259,8 +259,8 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 	}
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	return (unsafe.Pointer)(buf)
 }
@@ -279,6 +279,7 @@ func copyback(buf unsafe.Pointer) float32 {
 func initReduceBuf() {
 	const N = 128
 	reduceBuffers = make(chan *cl.MemObject, N)
+	// TODO: create a single large buffer and create subbuffers in the for loop
 	for i := 0; i < N; i++ {
 		reduceBuffers <- MemAlloc(SIZEOF_FLOAT32)
 	}

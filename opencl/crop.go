@@ -17,7 +17,7 @@ func Crop(dst, src *data.Slice, offX, offY, offZ int) {
 	cfg := make3DConf(D)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, 3)
@@ -26,10 +26,10 @@ func Crop(dst, src *data.Slice, offX, offY, offZ int) {
 			src.DevPtr(c), S[X], S[Y], S[Z],
 			offX, offY, offZ, cfg, evtWL)
 		// set event markers
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 		evtList[c] = event
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }

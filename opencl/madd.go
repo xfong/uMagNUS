@@ -15,7 +15,7 @@ func Mul(dst, a, b *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -23,11 +23,11 @@ func Mul(dst, a, b *data.Slice) {
 		event := k_mul_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // divide: dst[i] = a[i] / b[i]
@@ -39,7 +39,7 @@ func Div(dst, a, b *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -47,11 +47,11 @@ func Div(dst, a, b *data.Slice) {
 		event := k_pointwise_div_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // Add: dst = src1 + src2.
@@ -68,7 +68,7 @@ func Madd2(dst, src1, src2 *data.Slice, factor1, factor2 float32) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -80,11 +80,11 @@ func Madd2(dst, src1, src2 *data.Slice, factor1, factor2 float32) {
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3 * factor3
@@ -96,7 +96,7 @@ func Madd3(dst, src1, src2, src3 *data.Slice, factor1, factor2, factor3 float32)
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -109,11 +109,11 @@ func Madd3(dst, src1, src2, src3 *data.Slice, factor1, factor2, factor3 float32)
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4
@@ -125,7 +125,7 @@ func Madd4(dst, src1, src2, src3, src4 *data.Slice, factor1, factor2, factor3, f
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -139,11 +139,11 @@ func Madd4(dst, src1, src2, src3, src4 *data.Slice, factor1, factor2, factor3, f
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4 + src5[i] * factor5
@@ -155,7 +155,7 @@ func Madd5(dst, src1, src2, src3, src4, src5 *data.Slice, factor1, factor2, fact
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -170,11 +170,11 @@ func Madd5(dst, src1, src2, src3, src4, src5 *data.Slice, factor1, factor2, fact
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4 + src5[i] * factor5 + src6[i] * factor6
@@ -186,7 +186,7 @@ func Madd6(dst, src1, src2, src3, src4, src5, src6 *data.Slice, factor1, factor2
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -202,11 +202,11 @@ func Madd6(dst, src1, src2, src3, src4, src5, src6 *data.Slice, factor1, factor2
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
 
 // multiply-add: dst[i] = src1[i] * factor1 + src2[i] * factor2 + src3[i] * factor3 + src4[i] * factor4 + src5[i] * factor5 + src6[i] * factor6 + src7[i] * factor7
@@ -218,7 +218,7 @@ func Madd7(dst, src1, src2, src3, src4, src5, src6, src7 *data.Slice, factor1, f
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, nComp)
@@ -235,9 +235,9 @@ func Madd7(dst, src1, src2, src3, src4, src5, src6, src7 *data.Slice, factor1, f
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }

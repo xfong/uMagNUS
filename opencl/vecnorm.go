@@ -14,7 +14,7 @@ func VecNorm(dst *data.Slice, a *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_vecnorm_async(dst.DevPtr(0),
@@ -22,6 +22,6 @@ func VecNorm(dst *data.Slice, a *data.Slice) {
 		N, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

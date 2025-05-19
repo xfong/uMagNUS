@@ -16,7 +16,7 @@ func LLTorque(torque, m, B *data.Slice, alpha MSlice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_lltorque2_async(torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
@@ -26,8 +26,8 @@ func LLTorque(torque, m, B *data.Slice, alpha MSlice) {
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // Landau-Lifshitz torque with precession disabled.
@@ -37,7 +37,7 @@ func LLNoPrecess(torque, m, B *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_llnoprecess_async(torque.DevPtr(X), torque.DevPtr(Y), torque.DevPtr(Z),
@@ -46,6 +46,6 @@ func LLNoPrecess(torque, m, B *data.Slice) {
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

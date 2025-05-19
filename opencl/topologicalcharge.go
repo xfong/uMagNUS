@@ -15,7 +15,7 @@ func SetTopologicalCharge(s *data.Slice, m *data.Slice, mesh *data.Mesh) {
 	icxcy := float32(1.0 / (cellsize[X] * cellsize[Y]))
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_settopologicalcharge_async(s.DevPtr(X),
@@ -24,6 +24,6 @@ func SetTopologicalCharge(s *data.Slice, m *data.Slice, mesh *data.Mesh) {
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

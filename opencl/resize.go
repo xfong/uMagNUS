@@ -21,7 +21,7 @@ func Resize(dst, src *data.Slice, layer int) {
 	cfg := make3DConf(dstsize)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_resize_async(dst.DevPtr(0), dstsize[X], dstsize[Y], dstsize[Z],
@@ -29,8 +29,8 @@ func Resize(dst, src *data.Slice, layer int) {
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 
 	if Synchronous {
 		if err := WaitLastEvent(); err != nil {

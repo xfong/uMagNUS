@@ -11,7 +11,7 @@ func Minimize(m, m0, torque *data.Slice, dt float32) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_minimize_async(m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z),
@@ -20,6 +20,6 @@ func Minimize(m, m0, torque *data.Slice, dt float32) {
 		dt, N, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }

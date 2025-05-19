@@ -15,15 +15,15 @@ func RegionAddV(dst *data.Slice, lut LUTPtrs, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_regionaddv_async(dst.DevPtr(X), dst.DevPtr(Y), dst.DevPtr(Z),
 		lut[X], lut[Y], lut[Z], regions.Ptr, N, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // dst += LUT[region], for scalar. Used to add terms to scalar excitation.
@@ -33,15 +33,15 @@ func RegionAddS(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_regionadds_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // decode the regions+LUT pair into an uncompressed array
@@ -50,15 +50,15 @@ func RegionDecode(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	event := k_regiondecode_async(dst.DevPtr(0), unsafe.Pointer(lut), regions.Ptr, N, cfg,
 		evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
-	UpdateLastEventSingle(event)
+	InsertEventToCmdSeqTail(event)
+	UpdateLatestCmdSingle(event)
 }
 
 // select the part of src within the specified region, set 0's everywhere else.
@@ -68,7 +68,7 @@ func RegionSelect(dst, src *data.Slice, regions *Bytes, region byte) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, dst.NComp())
@@ -77,9 +77,9 @@ func RegionSelect(dst, src *data.Slice, regions *Bytes, region byte) {
 			evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }

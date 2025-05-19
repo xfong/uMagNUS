@@ -15,7 +15,7 @@ func Divide(dst, a, b *data.Slice) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, 3)
@@ -23,10 +23,10 @@ func Divide(dst, a, b *data.Slice) {
 		event := k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
 			evtWL)
 		// set event markers
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 		evtList[c] = event
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }

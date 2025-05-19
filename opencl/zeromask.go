@@ -13,7 +13,7 @@ func ZeroMask(dst *data.Slice, mask LUTPtr, regions *Bytes) {
 	cfg := make1DConf(N)
 
 	// sequence command according to queue
-	evtWL := ClLastEvent
+	evtWL := GetLatestCmd()
 
 	// execute
 	evtList := make([]*cl.Event, dst.NComp())
@@ -23,9 +23,9 @@ func ZeroMask(dst *data.Slice, mask LUTPtr, regions *Bytes) {
 			cfg, evtWL)
 		// set event markers
 		evtList[c] = event
-		AddEventToSequence(event)
+		InsertEventToCmdSeqTail(event)
 	}
 
 	// set event markers
-	UpdateLastEventList(evtList)
+	UpdateLatestCmdList(evtList)
 }
