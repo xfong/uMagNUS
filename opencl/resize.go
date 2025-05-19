@@ -33,7 +33,7 @@ func Resize(dst, src *data.Slice, layer int) {
 	UpdateLatestCmdSingle(event)
 
 	if Synchronous {
-		if err := WaitLastEvent(); err != nil {
+		if err := WaitLatestCmd(); err != nil {
 			fmt.Printf("wait for last event failed in resize: %+v \n", err)
 		}
 	}

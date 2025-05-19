@@ -52,12 +52,8 @@ func (c *DemagConvolution) Exec(B, m, vol *data.Slice, Msat MSlice) {
 }
 
 func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
-	var err error
-
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in demagconvolution.exec3d: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	for i := 0; i < 3; i++ { // FW FFT
@@ -76,12 +72,8 @@ func (c *DemagConvolution) exec3D(outp, inp, vol *data.Slice, Msat MSlice) {
 }
 
 func (c *DemagConvolution) exec2D(outp, inp, vol *data.Slice, Msat MSlice) {
-	var err error
-
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in demagconvolution.exec2d: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// Convolution is separated into
@@ -122,9 +114,7 @@ func zero1_async(dst *data.Slice) {
 		panic("ERROR (zero1_async): dst pointer cannot be nil")
 	}
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker in zero1_async: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -147,7 +137,7 @@ func zero1_async(dst *data.Slice) {
 	UpdateLatestCmdSingle(event)
 
 	if Synchronous {
-		if err = WaitLastEvent(); err != nil {
+		if err = WaitLatestCmd(); err != nil {
 			fmt.Printf("wait for last marker failed in zero1_async: %+v \n", err)
 		}
 	}

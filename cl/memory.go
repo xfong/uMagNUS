@@ -44,7 +44,7 @@ import (
 	"unsafe"
 )
 
-//////////////// Basic Types ////////////////
+// ////////////// Basic Types ////////////////
 type LocalMemType int
 
 const (
@@ -133,7 +133,7 @@ type MappedMemObject struct {
 	slicePitch int
 }
 
-//////////////// Abstract Types ////////////////
+// ////////////// Abstract Types ////////////////
 type MemObject struct {
 	clMem C.cl_mem
 	size  int
@@ -141,12 +141,13 @@ type MemObject struct {
 	//rdMkr C.cl_event // latest event marker for commands reading memobject (consumer)
 }
 
-////////////////// Supporting Types ////////////////
+// //////////////// Supporting Types ////////////////
 type CL_go_set_memdestructor_callback func(memObj C.cl_mem, user_data unsafe.Pointer)
 
 var go_set_memdestructor_callback_func map[unsafe.Pointer]CL_go_set_memdestructor_callback
 
-//////////////// Basic Functions ///////////////
+// ////////////// Basic Functions ///////////////
+//
 //export go_set_memdestructor_callback
 func go_set_memdestructor_callback(memObj C.cl_mem, user_data unsafe.Pointer) {
 	var c_user_data []unsafe.Pointer
@@ -173,7 +174,7 @@ func newMemObject(mo C.cl_mem, size int) *MemObject {
 	return memObject
 }
 
-//////////////// Abstract Functions ////////////////
+// ////////////// Abstract Functions ////////////////
 func (mb *MappedMemObject) ByteSlice() []byte {
 	var byteSlice []byte
 	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&byteSlice))
@@ -443,7 +444,7 @@ Based on these observations, we need to track only:
 1. The latest event for writing into the memobject (simple to track using an event),
    and
 2. An event that completes only after all preceding reads have completed. These reads
-   may be completed in any order. This means we need a special marker that has two 
+   may be completed in any order. This means we need a special marker that has two
    dependencies:
     	i.   This special marker is initialized to a completed event.
 		ii.  When a read to the memobject is performed, enqueue a marker that depends on
@@ -453,24 +454,24 @@ Based on these observations, we need to track only:
 */
 
 /*
-// return event corresponding to latest command writing into memobject 
+// return event corresponding to latest command writing into memobject
 func (b *MemObject) GetWriteEvent() *Event {
 	return newEvent(b.wrEv)
 }
 
-// set event corresponding to latest command writing into memobject 
+// set event corresponding to latest command writing into memobject
 func (b *MemObject) SetWriteEvent(ev *Event) {
 	if ev != nil {
 		b.wrEv = ev.clEvent
 	}
 }
 
-// return marker tracking reads into memobject 
+// return marker tracking reads into memobject
 func (b *MemObject) GetReadMarker() *Event {
 	return newEvent(b.rdMkr)
 }
 
-// set marker tracking reads into memobject 
+// set marker tracking reads into memobject
 func (b *MemObject) SetReadMarker(ev *Event) {
 	if ev != nil {
 		b.rdMkr = ev.clEvent
@@ -694,12 +695,12 @@ func (ctx *Context) CreateBuffer(flags MemFlag, data []byte) (*MemObject, error)
 	return ctx.CreateBufferUnsafe(flags, len(data), unsafe.Pointer(&data[0]))
 }
 
-//float32
+// float32
 func (ctx *Context) CreateBufferFloat32(flags MemFlag, data []float32) (*MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, 4*len(data), unsafe.Pointer(&data[0]))
 }
 
-//float64
+// float64
 func (ctx *Context) CreateBufferFloat64(flags MemFlag, data []float64) (*MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, 8*len(data), unsafe.Pointer(&data[0]))
 }
@@ -717,11 +718,11 @@ func (mobj *MemObject) CreateSubBuffer(flags MemFlag, origin, bSize int) (*MemOb
 }
 
 func (mobj *MemObject) CreateSubBufferFloat32(flags MemFlag, origin, bSize int) (*MemObject, error) {
-	return mobj.CreateSubBuffer(flags MemFlag, 4*origin, 4*bSize)
+	return mobj.CreateSubBuffer(flags, 4*origin, 4*bSize)
 }
 
 func (mobj *MemObject) CreateSubBufferFloat64(flags MemFlag, origin, bSize int) (*MemObject, error) {
-	return mobj.CreateSubBuffer(flags MemFlag, 8*origin, 8*bSize)
+	return mobj.CreateSubBuffer(flags, 8*origin, 8*bSize)
 }
 
 func (q *CommandQueue) EnqueueFillBuffer(buffer *MemObject, pattern unsafe.Pointer, patternSize, offset, size int, eventWaitList []*Event) (*Event, error) {

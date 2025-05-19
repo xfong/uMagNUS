@@ -20,10 +20,10 @@ import "C"
 
 import "unsafe"
 
-//////////////// Constants ////////////////
+// ////////////// Constants ////////////////
 const maxPlatforms = 32
 
-//////////////// Abstract Types ////////////////
+// ////////////// Abstract Types ////////////////
 type Platform struct {
 	id C.cl_platform_id
 }
@@ -44,7 +44,7 @@ func GetPlatforms() ([]*Platform, error) {
 	return platforms, nil
 }
 
-//////////////// Abstract Functions ////////////////
+// ////////////// Abstract Functions ////////////////
 func (p *Platform) GetDevices(deviceType DeviceType) ([]*Device, error) {
 	return GetDevices(p, deviceType)
 }

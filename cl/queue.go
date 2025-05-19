@@ -23,7 +23,7 @@ import (
 	"unsafe"
 )
 
-//////////////// Basic Types ////////////////
+// ////////////// Basic Types ////////////////
 type CommandQueueProperty int
 
 const (
@@ -40,16 +40,16 @@ const (
 	CommandQueueProperties     CommandQueueInfo = C.CL_QUEUE_PROPERTIES
 )
 
-//////////////// Abstract Types ////////////////
+// ////////////// Abstract Types ////////////////
 type CommandQueue struct {
 	clQueue C.cl_command_queue
 	device  *Device
 }
 
-//////////////// Golang Types ////////////////
+// ////////////// Golang Types ////////////////
 type CLCommandQueueProperties C.cl_command_queue_properties
 
-//////////////// Basic Functions ////////////////
+// ////////////// Basic Functions ////////////////
 func retainCommandQueue(q *CommandQueue) error {
 	if q.clQueue != nil {
 		return toError(C.clRetainCommandQueue(q.clQueue))
@@ -66,7 +66,7 @@ func releaseCommandQueue(q *CommandQueue) error {
 	return nil
 }
 
-//////////////// Abstract Functions ////////////////
+// ////////////// Abstract Functions ////////////////
 // Call clRetainCommandQueue on the CommandQueue.
 func (q *CommandQueue) Retain() error {
 	return retainCommandQueue(q)

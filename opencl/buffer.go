@@ -24,6 +24,7 @@ const buf_max = 100 // maximum number of buffers to allocate (detect memory leak
 // Returns a GPU slice for temporary use. To be returned to the pool with Recycle
 func Buffer(nComp int, size [3]int) *data.Slice {
 	var err error
+	var tmpPtr *cl.MemObject
 	var event *cl.Event
 	var queue *cl.CommandQueue
 
@@ -49,17 +50,17 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 
 	// allocate as much new memory as needed
 	evtList := []*cl.Event{}
-	j := int(0)
 	for i := nFromPool; i < nComp; i++ {
 		if len(buf_check) >= buf_max {
 			log.Panic("too many buffers in use, possible memory leak")
 		}
-		tmpPtr, err := ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
+
+		tmpPtr, err = ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
 		if err != nil {
 			panic(err)
 		}
-		ptrs[i] = unsafe.Pointer(tmpPtr)
 
+		// need to zero the buffer (??)
 		// create command queue and execute
 		if queue, err = CreateCommandQueue(); err != nil {
 			log.Panicf("failed to create command queue in buffer: %+v \n", err)
@@ -68,13 +69,16 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		if event, err = queue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 			log.Panicf("CreateEmptyBuffer failed in buffer: %+v \n", err)
 		}
-		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 
 		if err = queue.Release(); err != nil { // implicit flush
 			log.Panicf("failed to release queue in buffer: %+v \n", err)
 		}
+
 		InsertEventToCmdSeqTail(event)
 		evtList = append(evtList, event)
+
+		ptrs[i] = unsafe.Pointer(tmpPtr)
+		buf_check[ptrs[i]] = struct{}{} // mark this pointer as mine
 
 		// Synchronize
 		if Synchronous {
@@ -109,8 +113,6 @@ func Recycle(s *data.Slice) {
 
 // Frees all buffers. Called after mesh resize.
 func FreeBuffers() {
-	var err error
-
 	// synchronize to all events
 	WaitCommandSequence()
 	for _, size := range buf_pool {

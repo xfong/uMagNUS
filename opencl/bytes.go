@@ -47,7 +47,7 @@ func NewBytes(Len int) *Bytes {
 		log.Panicf("failed to fill buffer in newbytes: %+v \n", err)
 	}
 
-	if err = queue.Release(); err != nil {// implicit flush
+	if err = queue.Release(); err != nil { // implicit flush
 		log.Panicf("failed to release queue in newbytes: %+v \n", err)
 	}
 
@@ -128,7 +128,8 @@ func (dst *Bytes) Set(index int, value byte) {
 // Get one element.
 // data.Index can be used to find the index for x,y,z.
 // TODO: return as pointer and use events for synchronizing, which will allow us to wait on a
-//	     list of events rather than an individual event
+//
+//	list of events rather than an individual event
 func (src *Bytes) Get(index int) byte {
 	var err error
 	var event *cl.Event
@@ -176,8 +177,6 @@ func (src *Bytes) Get(index int) byte {
 
 // Frees the GPU memory and disables the slice.
 func (b *Bytes) Free() {
-	var err error
-
 	// Must synchronize
 	WaitCommandSequence()
 

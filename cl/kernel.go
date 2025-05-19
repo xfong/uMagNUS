@@ -27,7 +27,7 @@ import (
 	"unsafe"
 )
 
-//////////////// Basic Types ////////////////
+// ////////////// Basic Types ////////////////
 type ErrUnsupportedArgumentType struct {
 	Index int
 	Value interface{}
@@ -37,21 +37,21 @@ func (e ErrUnsupportedArgumentType) Error() string {
 	return fmt.Sprintf("cl: unsupported argument type for index %d: %+v", e.Index, e.Value)
 }
 
-//////////////// Abstract Types ////////////////
+// ////////////// Abstract Types ////////////////
 type Kernel struct {
 	clKernel C.cl_kernel
 	name     string
 }
 
-//////////////// Golang Types ////////////////
+// ////////////// Golang Types ////////////////
 type LocalBuffer int
 
-////////////////// Supporting Types ////////////////
+// //////////////// Supporting Types ////////////////
 type CL_go_native_kernel func(user_data unsafe.Pointer)
 
 var go_native_kernel_func map[unsafe.Pointer]CL_go_native_kernel
 
-//////////////// Basic Functions ////////////////
+// ////////////// Basic Functions ////////////////
 func init() {
 	go_native_kernel_func = make(map[unsafe.Pointer]CL_go_native_kernel)
 }
@@ -76,7 +76,7 @@ func retainKernel(k *Kernel) {
 	}
 }
 
-//////////////// Abstract Functions ////////////////
+// ////////////// Abstract Functions ////////////////
 func (k *Kernel) Release() {
 	releaseKernel(k)
 }

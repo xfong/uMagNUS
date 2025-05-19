@@ -24,15 +24,12 @@ possibly small work-groups.
 
 // Sum of all elements.
 func Sum(in *data.Slice) float32 {
-	var err error
 	util.Argument(in.NComp() == 1)
 
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -52,8 +49,6 @@ func Sum(in *data.Slice) float32 {
 
 // Dot product
 func Dot(a, b *data.Slice) float32 {
-	var err error
-
 	util.Argument(a.NComp() == b.NComp())
 	util.Argument(a.Len() == b.Len())
 	result := float32(0)
@@ -64,9 +59,7 @@ func Dot(a, b *data.Slice) float32 {
 	}
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -97,15 +90,11 @@ func Dot(a, b *data.Slice) float32 {
 
 // Maximum of absolute values of all elements.
 func MaxAbs(in *data.Slice) float32 {
-	var err error
-
 	util.Argument(in.NComp() == 1)
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -125,8 +114,6 @@ func MaxAbs(in *data.Slice) float32 {
 
 // Maximum element-wise difference
 func MaxDiff(a, b *data.Slice) []float32 {
-	var err error
-
 	util.Argument(a.NComp() == b.NComp())
 	util.Argument(a.Len() == b.Len())
 	numComp := a.NComp()
@@ -137,9 +124,7 @@ func MaxDiff(a, b *data.Slice) []float32 {
 	}
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -168,15 +153,11 @@ func MaxDiff(a, b *data.Slice) []float32 {
 //
 //	max_i sqrt( x[i]*x[i] + y[i]*y[i] + z[i]*z[i] )
 func MaxVecNorm(v *data.Slice) float64 {
-	var err error
-
 	util.Argument(v.NComp() == 3)
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -199,17 +180,13 @@ func MaxVecNorm(v *data.Slice) float64 {
 //	(dx, dy, dz) = (x1, y1, z1) - (x2, y2, z2)
 //	max_i sqrt( dx[i]*dx[i] + dy[i]*dy[i] + dz[i]*dz[i] )
 func MaxVecDiff(x, y *data.Slice) float64 {
-	var err error
-
 	util.Argument(x.Len() == y.Len())
 	util.Argument(x.NComp() == 3)
 	util.Argument(y.NComp() == 3)
 	out := reduceBuf(0)
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("failed to wait for last marker to finish in sum: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	// sequence command according to queue
@@ -279,11 +256,36 @@ func copyback(buf unsafe.Pointer) float32 {
 func initReduceBuf() {
 	const N = 128
 	reduceBuffers = make(chan *cl.MemObject, N)
+
 	// TODO: create a single large buffer and create subbuffers in the for loop
+	primaryReduceBuffer = MemAllocFloat32(N)
+
 	for i := 0; i < N; i++ {
-		reduceBuffers <- MemAlloc(SIZEOF_FLOAT32)
+		tmpBuf, err := primaryReduceBuffer.CreateSubBufferFloat32(cl.MemReadWrite, i*SIZEOF_FLOAT32, SIZEOF_FLOAT32)
+		if err != nil {
+			log.Panicf("unable to create subbuffer for reducebuf: %+v \n", err)
+		} else {
+			reduceBuffers <- tmpBuf
+		}
 	}
 }
+
+func freeReduceBuffer() {
+	// wait for all commands to complete to ensure no reduceBuffer was checked out
+	WaitCmdSeqTail()
+
+	// release all subbuffers
+	for i := 0; i < len(reduceBuffers); i++ {
+		tmpBuf := <-reduceBuffers
+		tmpBuf.Release()
+	}
+
+	// release the main reduce buffer
+	primaryReduceBuffer.Release()
+}
+
+// primary reduce buffer from which the subbuffers will be created
+var primaryReduceBuffer *cl.MemObject
 
 // launch configuration for reduce kernels
 // 8 is typ. number of multiprocessors.

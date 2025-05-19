@@ -307,6 +307,7 @@ func (s *GPU) getGpuPlatform() *cl.Platform {
 }
 
 func ReleaseAndClean() {
+	freeReduceBuffer()
 	ClProgram.Release()
 	ClCtx.Release()
 }

@@ -33,7 +33,7 @@ func AddExchange(B, m *data.Slice, Aex_red SymmLUT, Msat MSlice, regions *Bytes,
 		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, evtWL)
 
 	// set event markers
-	AddEventToSequence(event)
+	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
 

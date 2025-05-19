@@ -48,7 +48,7 @@ import (
 	"unsafe"
 )
 
-////////////////// Basic Types ////////////////
+// //////////////// Basic Types ////////////////
 type ContextInfo int
 
 const (
@@ -65,22 +65,22 @@ const (
 	ContextInteropUserSync ContextPropertiesId = C.CL_CONTEXT_INTEROP_USER_SYNC
 )
 
-////////////////// Abstract Types ////////////////
+// //////////////// Abstract Types ////////////////
 type Context struct {
 	clContext C.cl_context
 	devices   []*Device
 }
 
-////////////////// Golang Types ////////////////
+// //////////////// Golang Types ////////////////
 type CLContext C.cl_context
 type CLContextProperties C.cl_context_properties
 
-////////////////// Supporting Types ////////////////
+// //////////////// Supporting Types ////////////////
 type CL_ctx_notify func(errinfo string, private_info unsafe.Pointer, cb int, user_data unsafe.Pointer)
 
 var ctx_notify map[unsafe.Pointer]CL_ctx_notify
 
-////////////////// Basic Functions ////////////////
+// //////////////// Basic Functions ////////////////
 func init() {
 	ctx_notify = make(map[unsafe.Pointer]CL_ctx_notify)
 }
@@ -169,7 +169,7 @@ func CreateContextFromTypeUnsafe(properties *C.cl_context_properties, device_typ
 	return context, nil
 }
 
-////////////////// Abstract Functions ////////////////
+// //////////////// Abstract Functions ////////////////
 func (ctx *Context) Release() {
 	releaseContext(ctx)
 }

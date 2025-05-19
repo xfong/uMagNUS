@@ -195,7 +195,7 @@ import (
 	"unsafe"
 )
 
-//////////////// Basic Types ////////////////
+// ////////////// Basic Types ////////////////
 type BuildStatus int
 
 const (
@@ -214,7 +214,7 @@ const (
 	ProgramBinaryTypeExecutable     ProgramBinaryTypes = C.CL_PROGRAM_BINARY_TYPE_EXECUTABLE
 )
 
-//////////////// Abstract Types ////////////////
+// ////////////// Abstract Types ////////////////
 type BuildError struct {
 	Message string
 	Device  *Device
@@ -245,7 +245,7 @@ type ProgramBinaries struct {
 	binarySizes []int
 }
 
-////////////////// Supporting Types ////////////////
+// //////////////// Supporting Types ////////////////
 type CL_program_notify func(alt_program C.cl_program, user_data unsafe.Pointer)
 
 var program_notify map[unsafe.Pointer]CL_program_notify
@@ -258,7 +258,7 @@ type CL_link_program_notify func(alt_program C.cl_program, user_data unsafe.Poin
 
 var link_program_notify map[unsafe.Pointer]CL_link_program_notify
 
-////////////////// Basic Functions ////////////////
+// //////////////// Basic Functions ////////////////
 func init() {
 	program_notify = make(map[unsafe.Pointer]CL_program_notify)
 	compile_program_notify = make(map[unsafe.Pointer]CL_compile_program_notify)
@@ -286,7 +286,7 @@ func go_link_program_notify(alt_program C.cl_program, user_data unsafe.Pointer) 
 	link_program_notify[c_user_data[1]](alt_program, c_user_data[0])
 }
 
-//////////////// Basic Functions ////////////////
+// ////////////// Basic Functions ////////////////
 func releaseProgram(p *Program) {
 	if p.clProgram != nil {
 		C.clReleaseProgram(p.clProgram)
@@ -300,7 +300,7 @@ func retainProgram(p *Program) {
 	}
 }
 
-//////////////// Abstract Functions ////////////////
+// ////////////// Abstract Functions ////////////////
 func (p *Program) Release() {
 	releaseProgram(p)
 }

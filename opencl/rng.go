@@ -109,9 +109,7 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 	demand, demand_offset := d_size, 0
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("wait for last marker in uniform rng failed: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	for demand > 0 {
@@ -168,7 +166,7 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 		UpdateLatestCmdSingle(event)
 
 		if Synchronous { // debug
-			if err = WaitLastEvent(); err != nil {
+			if err = WaitLatestCmd(); err != nil {
 				fmt.Printf("failed to wait for last event in uniform rng: %+v \n", err)
 			}
 		}
@@ -183,9 +181,7 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 	demand, demand_offset := d_size, 0
 
 	if Synchronous { // debug
-		if err = WaitLastMarker(); err != nil {
-			fmt.Printf("wait for last marker in normal rng failed: %+v \n", err)
-		}
+		WaitCommandSequence()
 	}
 
 	for demand > 0 {
@@ -242,7 +238,7 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 		UpdateLatestCmdSingle(event)
 
 		if Synchronous { // debug
-			if err = WaitLastEvent(); err != nil {
+			if err = WaitLatestCmd(); err != nil {
 				fmt.Printf("failed to wait for last event in normal rng: %+v \n", err)
 			}
 		}

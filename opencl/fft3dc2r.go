@@ -35,10 +35,7 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 	var queue *cl.CommandQueue
 
 	if Synchronous {
-		if err = WaitLastMarker(); err != nil {
-			log.Printf("failed to wait for last event in beginning of fft3dc2r.execasync: %+v \n", err)
-		}
-		timer.Start("bwfft")
+		WaitCommandSequence()
 	}
 
 	oksrclen := p.InputLenFloats()
@@ -82,7 +79,7 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 	if Synchronous {
-		if err = WaitLastEvent(); err != nil {
+		if err = WaitLatestCmd(); err != nil {
 			log.Panicf("failed to wait for last event in fft3dc2r.execasync: %+v \n", err)
 		}
 		timer.Stop("bwfft")

@@ -92,10 +92,10 @@ import (
 // CL_DEVICE_PARTITION_PROPERTIES
 // CL_DEVICE_PARTITION_TYPE
 
-//////////////// Constants ////////////////
+// ////////////// Constants ////////////////
 const maxDeviceCount = 64
 
-//////////////// Basic Types ////////////////
+// ////////////// Basic Types ////////////////
 type DeviceType uint
 
 const (
@@ -171,15 +171,15 @@ func (dt DeviceType) String() string {
 	return strings.Join(parts, "|")
 }
 
-//////////////// Abstract Types ////////////////
+// ////////////// Abstract Types ////////////////
 type Device struct {
 	id C.cl_device_id
 }
 
-//////////////// Golang Types ////////////////
+// ////////////// Golang Types ////////////////
 type CLDevice C.cl_device_id
 
-//////////////// Basic Functions ////////////////
+// ////////////// Basic Functions ////////////////
 func buildDeviceIdList(devices []*Device) []C.cl_device_id {
 	deviceIds := make([]C.cl_device_id, len(devices))
 	for i, d := range devices {
@@ -211,7 +211,7 @@ func GetDevices(platform *Platform, deviceType DeviceType) ([]*Device, error) {
 	return devices, nil
 }
 
-//////////////// Abstract Functions ////////////////
+// ////////////// Abstract Functions ////////////////
 func (d *Device) nullableId() C.cl_device_id {
 	if d == nil {
 		return nil
