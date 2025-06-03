@@ -86,7 +86,9 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 		}
 	}
 
-	UpdateLatestCmdList(evtList)
+	if len(evtList) > 0 {
+		UpdateLatestCmdList(evtList)
+	}
 
 	outBuffer := data.SliceFromPtrs(size, data.GPUMemory, ptrs)
 	return outBuffer
