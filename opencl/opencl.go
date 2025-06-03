@@ -177,7 +177,7 @@ func UpdateLatestCmdSingle(ev *cl.Event) {
 	var err error
 
 	if ev == nil {
-		fmt.Printf("ev cannot be nil in updatelasteventsingle! \n")
+		fmt.Printf("ev cannot be nil in updatelatestcmdsingle! \n")
 		return
 	}
 
@@ -185,7 +185,7 @@ func UpdateLatestCmdSingle(ev *cl.Event) {
 	// to deallocate memory (no longer need to track them within
 	// the program)
 	if err = ReleasePreviousDeviceCommandEvents(); err != nil {
-		log.Printf("failed to release event in updatelatesteventsingle: %+v \n", err)
+		log.Printf("failed to release event in updatelatestcmdsingle: %+v \n", err)
 	}
 
 	// upate tracker
@@ -199,11 +199,11 @@ func UpdateLatestCmdList(evList []*cl.Event) {
 	// error check input to ensure it is neither a nil pointer nor
 	// an empty list
 	if evList == nil {
-		fmt.Printf("evList cannot be nil in updatelasteventlist! \n")
+		fmt.Printf("evList cannot be nil in updatelatestcmdlist! \n")
 		return
 	} else {
 		if len(evList) == 0 {
-			fmt.Printf("evList cannot be empty in updatelasteventlist! \n")
+			fmt.Printf("evList cannot be empty in updatelatestcmdlist! \n")
 			return
 		}
 	}

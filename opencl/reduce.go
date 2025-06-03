@@ -261,7 +261,7 @@ func initReduceBuf() {
 	primaryReduceBuffer = MemAllocFloat32(N)
 
 	for i := 0; i < N; i++ {
-		tmpBuf, err := primaryReduceBuffer.CreateSubBufferFloat32(cl.MemReadWrite, i*SIZEOF_FLOAT32, SIZEOF_FLOAT32)
+		tmpBuf, err := primaryReduceBuffer.CreateSubBufferFloat32(cl.MemReadWrite, i, 1)
 		if err != nil {
 			log.Panicf("unable to create subbuffer for reducebuf: %+v \n", err)
 		} else {

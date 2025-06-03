@@ -19,7 +19,7 @@ static cl_mem CLcreateSubBuffer(	cl_mem		memobj,
 	cl_buffer_region *buffer_info = malloc(sizeof(cl_buffer_region));
 	buffer_info->origin = orig;
 	buffer_info->size = bSize;
-	return clCreateSubBuffer(memobj, flags, CL_BUFFER_CREATE_TYPE_REGION, &buffer_info, err);
+	return clCreateSubBuffer(memobj, flags, CL_BUFFER_CREATE_TYPE_REGION, buffer_info, err);
 }
 
 static cl_int CLGetMemObjectInfoParamSize(cl_mem                      memobj,
