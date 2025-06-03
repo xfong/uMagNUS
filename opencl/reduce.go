@@ -268,20 +268,25 @@ func initReduceBuf() {
 			reduceBuffers <- tmpBuf
 		}
 	}
+	reduceInit = true
 }
 
 func freeReduceBuffer() {
-	// wait for all commands to complete to ensure no reduceBuffer was checked out
-	WaitCmdSeqTail()
+	if reduceInit {
+		// wait for all commands to complete to ensure no reduceBuffer was checked out
+		WaitCmdSeqTail()
 
-	// release all subbuffers
-	for i := 0; i < len(reduceBuffers); i++ {
-		tmpBuf := <-reduceBuffers
-		tmpBuf.Release()
+		// release all subbuffers
+		for i := 0; i < len(reduceBuffers); i++ {
+			tmpBuf := <-reduceBuffers
+			tmpBuf.Release()
+		}
+
+		// release the main reduce buffer
+		primaryReduceBuffer.Release()
 	}
 
-	// release the main reduce buffer
-	primaryReduceBuffer.Release()
+	reduceInit = false
 }
 
 // primary reduce buffer from which the subbuffers will be created
@@ -292,3 +297,5 @@ var primaryReduceBuffer *cl.MemObject
 // could be improved but takes hardly ~1% of execution time
 var reducecfg = &config{Grid: []int{1, 1, 1}, Block: []int{1, 1, 1}}
 var ReduceWorkitems int
+
+var reduceInit bool
