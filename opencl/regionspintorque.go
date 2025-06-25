@@ -3,6 +3,7 @@ package opencl
 // Region paired spin torque calculations
 
 import (
+	"log"
 	"math"
 
 	data "github.com/seeder-research/uMagNUS/data"

@@ -1,6 +1,8 @@
 package opencl
 
 import (
+	"log"
+
 	data "github.com/seeder-research/uMagNUS/data"
 )
 
@@ -30,6 +32,7 @@ func AddZhangLiTorque(torque, m *data.Slice, Msat, J, alpha, xi, pol MSlice, mes
 		evtWL)
 
 	// set event markers
+	log.Println("in zhangli")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

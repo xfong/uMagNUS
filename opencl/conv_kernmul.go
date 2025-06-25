@@ -4,6 +4,8 @@ package opencl
 // Launch configs range over all complex elements of fft input. This could be optimized: range only over kernel.
 
 import (
+	"log"
+
 	data "github.com/seeder-research/uMagNUS/data"
 	util "github.com/seeder-research/uMagNUS/util"
 )

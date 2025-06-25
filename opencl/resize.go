@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	"log"
 	"fmt"
 
 	data "github.com/seeder-research/uMagNUS/data"

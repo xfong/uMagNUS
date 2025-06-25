@@ -1,6 +1,7 @@
 package opencl
 
 import (
+	"log"
 	"unsafe"
 
 	cl "github.com/seeder-research/uMagNUS/cl"
