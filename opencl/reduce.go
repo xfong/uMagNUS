@@ -257,11 +257,8 @@ func initReduceBuf() {
 	const N = 128
 	reduceBuffers = make(chan *cl.MemObject, N)
 
-	// TODO: create a single large buffer and create subbuffers in the for loop
-	primaryReduceBuffer = MemAllocFloat32(N)
-
 	for i := 0; i < N; i++ {
-		tmpBuf, err := primaryReduceBuffer.CreateSubBufferFloat32(cl.MemReadWrite, i, 1)
+		tmpBuf := MemAllocFloat32(1)
 		if err != nil {
 			log.Panicf("unable to create subbuffer for reducebuf: %+v \n", err)
 		} else {
@@ -282,15 +279,10 @@ func freeReduceBuffer() {
 			tmpBuf.Release()
 		}
 
-		// release the main reduce buffer
-		primaryReduceBuffer.Release()
 	}
 
 	reduceInit = false
 }
-
-// primary reduce buffer from which the subbuffers will be created
-var primaryReduceBuffer *cl.MemObject
 
 // launch configuration for reduce kernels
 // 8 is typ. number of multiprocessors.
