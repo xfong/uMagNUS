@@ -258,12 +258,7 @@ func initReduceBuf() {
 	reduceBuffers = make(chan *cl.MemObject, N)
 
 	for i := 0; i < N; i++ {
-		tmpBuf := MemAllocFloat32(1)
-		if err != nil {
-			log.Panicf("unable to create subbuffer for reducebuf: %+v \n", err)
-		} else {
-			reduceBuffers <- tmpBuf
-		}
+		reduceBuffers <- MemAllocFloat32(1)
 	}
 	reduceInit = true
 }
