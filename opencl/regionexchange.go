@@ -3,6 +3,7 @@ package opencl
 // Region paired exchange interaction
 
 import (
+	"log"
 	"math"
 
 	data "github.com/seeder-research/uMagNUS/data"
