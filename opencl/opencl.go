@@ -128,6 +128,7 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	var queue *cl.CommandQueue
 	var marker *cl.Event
 
+	log.Printf("attempting to update event to cmd seq...")
 	if queue, err = CreateCommandQueue(); err != nil { // create queue
 		log.Fatalf("failed to create command queue in addeventtosequence: %+v \n", err)
 		return

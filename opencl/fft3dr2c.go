@@ -39,6 +39,7 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 		WaitCommandSequence()
 	}
 
+	log.Printf("calling execasync (r2c)")
 	util.Argument(src.NComp() == 1 && dst.NComp() == 1)
 	oksrclen := p.InputLen()
 	if src.Len() != oksrclen {

@@ -38,6 +38,7 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 		WaitCommandSequence()
 	}
 
+	log.Printf("calling execasync (c2r)")
 	oksrclen := p.InputLenFloats()
 	if src.Len() != oksrclen {
 		log.Panicf("fft size mismatch: expecting src len %v, got %v", oksrclen, src.Len())
