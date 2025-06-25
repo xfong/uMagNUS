@@ -129,24 +129,24 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	var marker *cl.Event
 
 	if queue, err = CreateCommandQueue(); err != nil { // create queue
-		log.Panicf("failed to create command queue in addeventtosequence: %+v \n", err)
+		log.Fatalf("failed to create command queue in addeventtosequence: %+v \n", err)
 		return
 	}
 
 	// generate the new event marker
 	if marker, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{ClCmdSeqTail, ev}); err != nil {
-		log.Panicf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err)
+		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err)
 		return
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
-		log.Panicf("failed to release queue in inserteventtocmdseqtail: %+v \n", err)
+		log.Fatalf("failed to release queue in inserteventtocmdseqtail: %+v \n", err)
 	}
 
 	// release the old marker to the memory will be deallocated before updating the tracker
 	if ClCmdSeqTail != ClInitMarker {
 		if err = ClCmdSeqTail.Release(); err != nil {
-			log.Printf("failed to release marker event in inserteventtocmdseqtail: %+v \n", err)
+			log.Fatalf("failed to release marker event in inserteventtocmdseqtail: %+v \n", err)
 		}
 	}
 
