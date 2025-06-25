@@ -58,6 +58,7 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 		log.Panicf("failed to create command queue in fft3dr2c.execasync: %+v \n", err)
 	}
 	evtWL := GetLatestCmd()
+	log.Printf("length of evtWL: %+v \n", len(evtWL))
 	if event, err = queue.EnqueueMarkerWithWaitList(evtWL); err != nil {
 		log.Panicf("failed to enqueue barrier in fft3dr2c.execasync: %+v \n", err)
 	}
