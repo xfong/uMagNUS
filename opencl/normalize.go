@@ -19,6 +19,7 @@ func Normalize(vec, vol *data.Slice) {
 		vol.DevPtr(0), N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in normalize")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

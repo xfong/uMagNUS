@@ -22,6 +22,7 @@ func kernMulRSymm3D_async(fftM [3]*data.Slice, Kxx, Kyy, Kzz, Kyz, Kxz, Kxy *dat
 		Nx, Ny, Nz, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in kernmulrsymm3d")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -40,6 +41,7 @@ func kernMulRSymm2Dxy_async(fftMx, fftMy, Kxx, Kyy, Kxy *data.Slice, Nx, Ny int)
 		Nx, Ny, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in kernmulrsymm2dxy")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -57,6 +59,7 @@ func kernMulRSymm2Dz_async(fftMz, Kzz *data.Slice, Nx, Ny int) {
 		evtWL)
 
 	// set event markers
+	log.Printf("in kernmulrsymm2dz")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -75,6 +78,7 @@ func kernMulC_async(fftM, K *data.Slice, Nx, Ny int) {
 		evtWL)
 
 	// set event markers
+	log.Printf("in kernmulc")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

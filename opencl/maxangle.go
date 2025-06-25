@@ -23,6 +23,7 @@ func SetMaxAngle(dst, m *data.Slice, Aex_red SymmLUT, regions *Bytes, mesh *data
 		N[X], N[Y], N[Z], pbc, cfg, evtWL)
 
 	// set event markers
+	log.Println("in setmaxangle")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

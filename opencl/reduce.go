@@ -40,6 +40,7 @@ func Sum(in *data.Slice) float32 {
 		in.Len(), reducecfg, evtWL)
 
 	// set event markers
+	log.Println("in sum")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -72,6 +73,7 @@ func Dot(a, b *data.Slice) float32 {
 			a.Len(), reducecfg, evtWL) // all components add to out
 		// set event markers
 		evtList[c] = event
+		log.Println("in dot")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -105,6 +107,7 @@ func MaxAbs(in *data.Slice) float32 {
 		in.Len(), reducecfg, evtWL)
 
 	// set event markers
+	log.Println("in maxabs")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -137,6 +140,7 @@ func MaxDiff(a, b *data.Slice) []float32 {
 			a.Len(), reducecfg, evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Println("in maxdiff")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -168,6 +172,7 @@ func MaxVecNorm(v *data.Slice) float64 {
 		out, 0, v.Len(), reducecfg, evtWL)
 
 	// set event markers
+	log.Println("in maxvecnorm")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -198,6 +203,7 @@ func MaxVecDiff(x, y *data.Slice) float64 {
 		out, 0, x.Len(), reducecfg, evtWL)
 
 	// set event markers
+	log.Println("in maxvecdiff")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -236,6 +242,7 @@ func reduceBuf(initVal float32) unsafe.Pointer {
 	}
 
 	// set event markers
+	log.Println("in reducebuf")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 

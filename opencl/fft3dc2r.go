@@ -66,6 +66,7 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 	}
 
 	// set event markers
+	log.Printf("in c2r execasync1")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 	p.handle.SetQueueEvent(event)
@@ -77,6 +78,7 @@ func (p *fft3DC2RPlan) ExecAsync(src, dst *data.Slice) error {
 
 	// set event marker
 	event = p.handle.GetQueueEvent()
+	log.Printf("in c2r execasync2")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 	if Synchronous {

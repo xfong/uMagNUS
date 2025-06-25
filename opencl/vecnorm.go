@@ -22,6 +22,7 @@ func VecNorm(dst *data.Slice, a *data.Slice) {
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in vecnorm")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

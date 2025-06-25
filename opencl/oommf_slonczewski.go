@@ -34,6 +34,7 @@ func AddOommfSlonczewskiTorque(torque, m *data.Slice, Msat, J, fixedP, alpha, pf
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in oommf_slonc")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

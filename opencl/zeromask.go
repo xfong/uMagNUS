@@ -23,6 +23,7 @@ func ZeroMask(dst *data.Slice, mask LUTPtr, regions *Bytes) {
 			cfg, evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Println("in zeromask")
 		InsertEventToCmdSeqTail(event)
 	}
 

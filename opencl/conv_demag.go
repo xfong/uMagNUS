@@ -133,6 +133,7 @@ func zero1_async(dst *data.Slice) {
 	}
 
 	// set event markers
+	log.Printf("in zero1_async")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 

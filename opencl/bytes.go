@@ -52,6 +52,7 @@ func NewBytes(Len int) *Bytes {
 	}
 
 	// set event markers
+	log.Printf("in newbytes")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -115,6 +116,7 @@ func (dst *Bytes) Set(index int, value byte) {
 	}
 
 	// set event markers
+	log.Printf("in bytes.set")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -162,6 +164,7 @@ func (src *Bytes) Get(index int) byte {
 	}
 
 	// set event markers
+	log.Printf("in bytes.get")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 

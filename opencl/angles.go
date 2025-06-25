@@ -20,6 +20,7 @@ func SetPhi(s *data.Slice, m *data.Slice) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Printf("in setphi")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -38,6 +39,7 @@ func SetTheta(s *data.Slice, m *data.Slice) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Printf("in settheta")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

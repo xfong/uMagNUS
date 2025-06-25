@@ -23,6 +23,7 @@ func Divide(dst, a, b *data.Slice) {
 		event := k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
 			evtWL)
 		// set event markers
+		log.Printf("in divide")
 		InsertEventToCmdSeqTail(event)
 		evtList[c] = event
 	}

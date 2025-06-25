@@ -54,6 +54,7 @@ func MemAllocFloat32(N int) *cl.MemObject {
 	}
 
 	// set event markers
+	log.Printf("in memallocfloat32")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -92,6 +93,7 @@ func MemAllocFloat64(N int) *cl.MemObject {
 	}
 
 	// set event markers
+	log.Printf("in memallocfloat64")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 

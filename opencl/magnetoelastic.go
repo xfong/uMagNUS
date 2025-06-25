@@ -32,6 +32,7 @@ func AddMagnetoelasticField(Beff, m *data.Slice, exx, eyy, ezz, exy, exz, eyz, B
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in addmagnetoelasticfield")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -61,6 +62,7 @@ func GetMagnetoelasticForceDensity(out, m *data.Slice, B1, B2 MSlice, mesh *data
 		mesh.PBC_code(), cfg, evtWL)
 
 	// set event markers
+	log.Println("in getmagnetoelasticforcedensity")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

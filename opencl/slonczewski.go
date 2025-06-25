@@ -33,6 +33,7 @@ func AddSlonczewskiTorque2(torque, m *data.Slice, Msat, J, fixedP, alpha, pol, Î
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in addslonc")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

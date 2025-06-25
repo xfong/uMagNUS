@@ -31,6 +31,7 @@ func AddDMIBulk(Beff *data.Slice, m *data.Slice, Aex_red, D_red SymmLUT, Msat MS
 		N[X], N[Y], N[Z], mesh.PBC_code(), openBC, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in adddmibulk")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

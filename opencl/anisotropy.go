@@ -32,6 +32,7 @@ func AddCubicAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, k3, c1, c2 MSlice) {
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in addcubicanis")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -60,6 +61,7 @@ func AddUniaxialAnisotropy2(Beff, m *data.Slice, Msat, k1, k2, u MSlice) {
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in addunianis2")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -87,6 +89,7 @@ func AddUniaxialAnisotropy(Beff, m *data.Slice, Msat, k1, u MSlice) {
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in addunianis")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -117,6 +120,7 @@ func AddVoltageControlledAnisotropy(Beff, m *data.Slice, Msat, vcmaCoeff, voltag
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in addvoltageanis")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

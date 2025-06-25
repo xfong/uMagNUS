@@ -22,6 +22,7 @@ func copyUnPad(dst, src *data.Slice, dstsize, srcsize [3]int) {
 		evtWL)
 
 	// set event markers
+	log.Printf("in copyunpad")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -45,6 +46,7 @@ func copyPadMul(dst, src, vol *data.Slice, dstsize, srcsize [3]int, Msat MSlice)
 		evtWL)
 
 	// set event markers
+	log.Printf("in copypadmul")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

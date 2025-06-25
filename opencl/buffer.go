@@ -74,6 +74,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 			log.Panicf("failed to release queue in buffer: %+v \n", err)
 		}
 
+		log.Printf("in buffer")
 		InsertEventToCmdSeqTail(event)
 		evtList = append(evtList, event)
 

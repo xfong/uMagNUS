@@ -26,6 +26,7 @@ func LLTorque(torque, m, B *data.Slice, alpha MSlice) {
 		evtWL)
 
 	// set event markers
+	log.Printf("in lltorque")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -46,6 +47,7 @@ func LLNoPrecess(torque, m, B *data.Slice) {
 		evtWL)
 
 	// set event markers
+	log.Printf("in llnoprecess")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

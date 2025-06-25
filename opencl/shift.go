@@ -23,6 +23,7 @@ func ShiftX(dst, src *data.Slice, shiftX int, clampL, clampR float32) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in shiftx")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -43,6 +44,7 @@ func ShiftY(dst, src *data.Slice, shiftY int, clampL, clampR float32) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in shifty")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -63,6 +65,7 @@ func ShiftZ(dst, src *data.Slice, shiftZ int, clampL, clampR float32) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in shiftz")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -82,6 +85,7 @@ func ShiftBytes(dst, src *Bytes, m *data.Mesh, shiftX int, clamp byte) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in shuftbytes")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -100,6 +104,7 @@ func ShiftBytesY(dst, src *Bytes, m *data.Mesh, shiftY int, clamp byte) {
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in shiftbytesy")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

@@ -23,6 +23,7 @@ func Mul(dst, a, b *data.Slice) {
 		event := k_mul_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in mul")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -47,6 +48,7 @@ func Div(dst, a, b *data.Slice) {
 		event := k_pointwise_div_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in div")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -80,6 +82,7 @@ func Madd2(dst, src1, src2 *data.Slice, factor1, factor2 float32) {
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in madd2")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -109,6 +112,7 @@ func Madd3(dst, src1, src2, src3 *data.Slice, factor1, factor2, factor3 float32)
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in madd3")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -139,6 +143,7 @@ func Madd4(dst, src1, src2, src3, src4 *data.Slice, factor1, factor2, factor3, f
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in madd4")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -170,6 +175,7 @@ func Madd5(dst, src1, src2, src3, src4, src5 *data.Slice, factor1, factor2, fact
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in madd5")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -202,6 +208,7 @@ func Madd6(dst, src1, src2, src3, src4, src5, src6 *data.Slice, factor1, factor2
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in madd6")
 		InsertEventToCmdSeqTail(event)
 	}
 
@@ -235,6 +242,7 @@ func Madd7(dst, src1, src2, src3, src4, src5, src6, src7 *data.Slice, factor1, f
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Printf("in madd7")
 		InsertEventToCmdSeqTail(event)
 	}
 

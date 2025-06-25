@@ -26,6 +26,7 @@ func Crop(dst, src *data.Slice, offX, offY, offZ int) {
 			src.DevPtr(c), S[X], S[Y], S[Z],
 			offX, offY, offZ, cfg, evtWL)
 		// set event markers
+		log.Printf("in crop")
 		InsertEventToCmdSeqTail(event)
 		evtList[c] = event
 	}

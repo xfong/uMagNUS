@@ -24,6 +24,7 @@ func SetTopologicalCharge(s *data.Slice, m *data.Slice, mesh *data.Mesh) {
 		evtWL)
 
 	// set event markers
+	log.Println("in settopologicalcharge")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

@@ -36,6 +36,7 @@ func AddRegionSpinTorque(torque, m *data.Slice, Msat MSlice, regions *Bytes, reg
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in addregionspintorque")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

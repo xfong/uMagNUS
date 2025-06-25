@@ -29,6 +29,7 @@ func Resize(dst, src *data.Slice, layer int) {
 		evtWL)
 
 	// set event markers
+	log.Println("in resize")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 

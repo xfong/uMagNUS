@@ -32,6 +32,7 @@ func AddDMI(Beff *data.Slice, m *data.Slice, Aex_red, Dex_red SymmLUT, Msat MSli
 		N[X], N[Y], N[Z], mesh.PBC_code(), openBC, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in adddmi")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

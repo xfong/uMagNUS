@@ -82,6 +82,7 @@ func (g *Generator) Init(seed *uint64) {
 	}
 
 	// set event markers
+	log.Println("in rng.init")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -162,6 +163,7 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 		}
 
 		// set event markers
+		log.Println("in rng.uniform")
 		InsertEventToCmdSeqTail(event)
 		UpdateLatestCmdSingle(event)
 
@@ -234,6 +236,7 @@ func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 		}
 
 		// set event markers
+		log.Println("in rng.normal")
 		InsertEventToCmdSeqTail(event)
 		UpdateLatestCmdSingle(event)
 

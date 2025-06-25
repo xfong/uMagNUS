@@ -22,6 +22,7 @@ func CrossProduct(dst, a, b *data.Slice) {
 		N, cfg, evtWL)
 
 	// set event marker
+	log.Printf("in crossproduct")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

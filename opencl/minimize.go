@@ -20,6 +20,7 @@ func Minimize(m, m0, torque *data.Slice, dt float32) {
 		dt, N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in minimize")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

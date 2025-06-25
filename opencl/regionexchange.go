@@ -42,6 +42,7 @@ func AddRegionExchangeField(B, m *data.Slice, Msat MSlice, regions *Bytes, regio
 		evtWL)
 
 	// set event markers
+	log.Println("in addregionexchangefield")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -76,6 +77,7 @@ func AddRegionExchangeEdens(Edens, m *data.Slice, Msat MSlice, regions *Bytes, r
 		evtWL)
 
 	// set event markers
+	log.Println("in addregionexchangeedens")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

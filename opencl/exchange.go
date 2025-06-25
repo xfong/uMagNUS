@@ -33,6 +33,7 @@ func AddExchange(B, m *data.Slice, Aex_red SymmLUT, Msat MSlice, regions *Bytes,
 		wx, wy, wz, N[X], N[Y], N[Z], pbc, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in addexchange")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -56,6 +57,7 @@ func ExchangeDecode(dst *data.Slice, Aex_red SymmLUT, regions *Bytes, mesh *data
 		evtWL)
 
 	// set event markers
+	log.Printf("in exchangedecode")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

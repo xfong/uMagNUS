@@ -24,6 +24,7 @@ func SetTopologicalChargeLattice(s *data.Slice, m *data.Slice, mesh *data.Mesh) 
 		cfg, evtWL)
 
 	// set event markers
+	log.Println("in settopologicalchargelattice")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

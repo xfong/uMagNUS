@@ -58,6 +58,7 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 		}
 
 		// set event marker
+		log.Println("in newslice")
 		InsertEventToCmdSeqTail(event)
 		fillWait = append(fillWait, event)
 
@@ -111,6 +112,7 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	}
 
 	// set event markers
+	log.Println("in memcpyd2h")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -152,6 +154,7 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 	}
 
 	// set event marker
+	log.Println("in memcpyh2d")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -192,6 +195,7 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 	}
 
 	// set event markers
+	log.Println("in memcpy")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -240,6 +244,7 @@ func Memset(s *data.Slice, val ...float32) {
 
 		// set event markers
 		evtList = append(evtList, event)
+		log.Println("in memset")
 		InsertEventToCmdSeqTail(event)
 
 		if Synchronous { // debug
@@ -294,6 +299,7 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 	}
 
 	// set event markers
+	log.Println("in setelem")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 
@@ -333,6 +339,7 @@ func GetElem(s *data.Slice, comp int, index int) float32 {
 	}
 
 	// set event markers
+	log.Println("in getelem")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 

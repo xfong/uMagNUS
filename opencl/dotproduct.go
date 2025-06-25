@@ -23,6 +23,7 @@ func AddDotProduct(dst *data.Slice, prefactor float32, a, b *data.Slice) {
 		N, cfg, evtWL)
 
 	// set event markers
+	log.Printf("in adddotproduct")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }

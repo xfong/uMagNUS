@@ -22,6 +22,7 @@ func RegionAddV(dst *data.Slice, lut LUTPtrs, regions *Bytes) {
 		lut[X], lut[Y], lut[Z], regions.Ptr, N, cfg, evtWL)
 
 	// set event markers
+	log.Println("in egionaddv")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -40,6 +41,7 @@ func RegionAddS(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 		evtWL)
 
 	// set event markers
+	log.Println("in regionadds")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -57,6 +59,7 @@ func RegionDecode(dst *data.Slice, lut LUTPtr, regions *Bytes) {
 		evtWL)
 
 	// set event markers
+	log.Println("in regiondecode")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
@@ -77,6 +80,7 @@ func RegionSelect(dst, src *data.Slice, regions *Bytes, region byte) {
 			evtWL)
 		// set event markers
 		evtList[c] = event
+		log.Println("in regionselect")
 		InsertEventToCmdSeqTail(event)
 	}
 

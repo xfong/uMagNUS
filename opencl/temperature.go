@@ -25,6 +25,7 @@ func SetTemperature(Bth, noise *data.Slice, k2mu0_Mu0VgammaDt float64, Msat, Tem
 		evtWL)
 
 	// set event markers
+	log.Println("in settemperature")
 	InsertEventToCmdSeqTail(event)
 	UpdateLatestCmdSingle(event)
 }
