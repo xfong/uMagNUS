@@ -143,15 +143,15 @@ func Init(gpu int) {
 	ClCtx = context
 
 	// Create opencl command queues on selected device (needed??)
-	var queue *cl.CommandQueue
-	queue, err = CreateCommandQueue()
-	if err != nil {
-		fmt.Printf("CreateCommandQueue failed: %+v \n", err)
-		return
-	}
+	//var queue *cl.CommandQueue
+	//queue, err = CreateCommandQueue()
+	//if err != nil {
+	//	fmt.Printf("CreateCommandQueue failed: %+v \n", err)
+	//	return
+	//}
 
 	// update global variable
-	ClCmdQueue = queue // (needed??)
+	//ClCmdQueue = queue // (needed??)
 
 	// Create opencl program on selected opencl device
 	var program *cl.Program
