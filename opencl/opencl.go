@@ -107,6 +107,24 @@ func InitMarkers() {
 	}
 
 	// enqueue a marker with no dependencies that completes when executed
+	if ClInitMarker, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
+		log.Panicf("failed to enqueue marker (clinitmarker) in InitMarkers: %+v \n", err)
+	}
+
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue (clinitmarker) in InitMarkers: %+v \n", err)
+	}
+
+	// enqueue a marker with no dependencies that completes when executed
+	if ClCmdSeqTail, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
+		log.Panicf("failed to enqueue marker (clcmdseqtail) in InitMarkers: %+v \n", err)
+	}
+
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue (clcmdseqtail) in InitMarkers: %+v \n", err)
+	}
+
+	// enqueue a marker with no dependencies that completes when executed
 	if marker, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
 		log.Panicf("failed to enqueue marker in InitMarkers: %+v \n", err)
 	}
@@ -116,7 +134,6 @@ func InitMarkers() {
 	}
 
 	// update
-	ClInitMarker, ClCmdSeqTail = marker, marker
 	ClLatestCmd = []*cl.Event{marker}
 
 }
