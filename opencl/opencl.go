@@ -111,17 +111,9 @@ func InitMarkers() {
 		log.Panicf("failed to enqueue marker (clinitmarker) in InitMarkers: %+v \n", err)
 	}
 
-	if err = queue.Release(); err != nil { // implicit flush
-		log.Panicf("failed to release queue (clinitmarker) in InitMarkers: %+v \n", err)
-	}
-
 	// enqueue a marker with no dependencies that completes when executed
 	if ClCmdSeqTail, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
 		log.Panicf("failed to enqueue marker (clcmdseqtail) in InitMarkers: %+v \n", err)
-	}
-
-	if err = queue.Release(); err != nil { // implicit flush
-		log.Panicf("failed to release queue (clcmdseqtail) in InitMarkers: %+v \n", err)
 	}
 
 	// enqueue a marker with no dependencies that completes when executed
