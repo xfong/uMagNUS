@@ -6,7 +6,7 @@ package cl
 static cl_int CLGetCommandQueueInfoParamSize(cl_command_queue              command_queue,
                                       cl_command_queue_info            param_name,
                                       size_t                *param_value_size_ret) {
-	return clGetCommandQueueInfo(command_queue, param_name, NULL, NULL, param_value_size_ret);
+	return clGetCommandQueueInfo(command_queue, param_name, 0, NULL, param_value_size_ret);
 }
 
 static cl_int CLGetCommandQueueInfoParamUnsafe(cl_command_queue          command_queue,

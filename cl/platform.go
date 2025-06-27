@@ -6,7 +6,7 @@ package cl
 static cl_int CLGetPlatformInfoParamSize(cl_platform_id                  platform,
                                          cl_platform_info              param_name,
                                          size_t             *param_value_size_ret) {
-    return clGetPlatformInfo(platform, param_name, NULL, NULL, param_value_size_ret);
+    return clGetPlatformInfo(platform, param_name, 0, NULL, param_value_size_ret);
 }
 
 static cl_int CLGetPlatformInfoParamUnsafe(cl_platform_id            platform,

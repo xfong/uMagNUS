@@ -73,7 +73,7 @@ static cl_device_partition_property * partitionDeviceByNextPartitionable() {
 }
 
 static cl_int CLGetDeviceInfoParamSize(cl_device_id device, cl_device_info param_name, size_t* param_value_size_ret) {
-        return clGetDeviceInfo(device, param_name, NULL, NULL, param_value_size_ret);
+        return clGetDeviceInfo(device, param_name, 0, NULL, param_value_size_ret);
 }
 
 static cl_int CLGetDeviceInfoParamUnsafe(cl_device_id device, cl_device_info param_name, size_t param_value_size, void *param_value) {
