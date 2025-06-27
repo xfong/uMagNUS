@@ -162,6 +162,7 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	}
 
 	// update tracker
+	log.Printf("update ClCmdSeqTail: %+v \n", marker)
 	ClCmdSeqTail = marker
 }
 
