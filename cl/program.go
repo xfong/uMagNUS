@@ -60,7 +60,7 @@ static cl_int CLGetProgramInfo(                           cl_program            
 static cl_int CLGetProgramInfoParamSize(                  cl_program                  program,
                                                   const cl_program_info            param_name,
                                                   size_t                *param_value_ret_size) {
-        return clGetProgramInfo(program, param_name, NULL, NULL, param_value_ret_size);
+        return clGetProgramInfo(program, param_name, 0, NULL, param_value_ret_size);
 }
 
 static cl_int CLGetProgramInfoParamUnsafe(                cl_program                  program,
@@ -74,7 +74,7 @@ static cl_int CLGetProgramBuildInfoParamSize(             cl_program            
                                                          cl_device_id                   device,
                                              const cl_program_build_info            param_name,
                                                   size_t                 *param_value_ret_size) {
-        return clGetProgramBuildInfo(program, device, param_name, NULL, NULL, param_value_ret_size);
+        return clGetProgramBuildInfo(program, device, param_name, 0, NULL, param_value_ret_size);
 }
 
 static cl_int CLGetProgramBuildInfoParamUnsafe(           cl_program                   program,
@@ -90,7 +90,7 @@ static cl_int CLGetProgramBinary(  cl_program                        program,
                                      size_t                 param_value_size,
                                       void                      *param_value) {
 	size_t param_value_size_ret;
-	cl_int err0 = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, NULL, NULL, &param_value_size_ret);
+	cl_int err0 = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, 0, NULL, &param_value_size_ret);
 	if (err0 != CL_SUCCESS) {
 		return err0;
 	}

@@ -25,7 +25,7 @@ static cl_mem CLcreateSubBuffer(	cl_mem		memobj,
 static cl_int CLGetMemObjectInfoParamSize(cl_mem                      memobj,
                                           cl_mem_info             param_name,
                                           size_t       *param_value_size_ret) {
-	return clGetMemObjectInfo(memobj, param_name, NULL, NULL, param_value_size_ret);
+	return clGetMemObjectInfo(memobj, param_name, 0, NULL, param_value_size_ret);
 }
 
 static cl_int CLGetMemObjectInfoParamUnsafe(cl_mem                 memobj,
