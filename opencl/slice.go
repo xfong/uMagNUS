@@ -108,9 +108,11 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	}
 	// execute
 	event = nil
+	log.Printf("d2h event: %+v \n", event)
 	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, evtWL); err != nil {
 		log.Panicf("EnqueueReadBuffer in memcpyDtoH failed: %+v \n", err)
 	}
+	log.Printf("d2h event (after): %+v \n", event)
 
 	if err = queue.Release(); err != nil { // implicit flush
 		log.Panicf("failed to release queue in memcpyDtoH: %+v \n", err)
