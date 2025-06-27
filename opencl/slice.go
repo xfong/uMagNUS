@@ -48,16 +48,16 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 
 		// create command queue and zero the buffer (needed??)
 		if queue, err = CreateCommandQueue(); err != nil {
-			log.Panicf("failed to create command queue in newslice: %+v \n", err)
+			log.Fatalf("failed to create command queue in newslice: %+v \n", err)
 		}
 
 		// execute
 		if event, err = queue.EnqueueFillBuffer(tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
-			log.Panicf("EnqueueFillBuffer failed in newslice: %+v \n", err)
+			log.Fatalf("EnqueueFillBuffer failed in newslice: %+v \n", err)
 		}
 
 		if err = queue.Release(); err != nil { // implicit flush
-			log.Panicf("failed to release queue in newSlice: %+v \n", err)
+			log.Fatalf("failed to release queue in newSlice: %+v \n", err)
 		}
 
 		// set event marker
