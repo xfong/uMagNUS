@@ -102,10 +102,12 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	evtWL := GetLatestCmd()
 
 	// create command queue and execute
+	queue = nil
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in memcpyDtoH: %+v \n", err)
 	}
 	// execute
+	event = nil
 	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, evtWL); err != nil {
 		log.Panicf("EnqueueReadBuffer in memcpyDtoH failed: %+v \n", err)
 	}
