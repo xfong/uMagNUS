@@ -167,24 +167,32 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 	// init device buffers
 	// 2D re-uses fftBuf[X] as fftBuf[Z], 3D needs all 3 fftBufs.
 	nc := fftR2COutputSizeFloats(c.realKernSize)
+	log.Printf("1")
 	c.fftCBuf[X] = NewSlice(1, nc)
+	log.Printf("2")
 	c.fftCBuf[Y] = NewSlice(1, nc)
 	if c.is2D() {
 		c.fftCBuf[Z] = c.fftCBuf[X]
 	} else {
+		log.Printf("3")
 		c.fftCBuf[Z] = NewSlice(1, nc)
 	}
 
+	log.Printf("4")
 	c.fftRBuf[X] = NewSlice(1, c.realKernSize)
+	log.Printf("5")
 	c.fftRBuf[Y] = NewSlice(1, c.realKernSize)
 	if c.is2D() {
 		c.fftRBuf[Z] = c.fftRBuf[X]
 	} else {
+		log.Printf("6")
 		c.fftRBuf[Z] = NewSlice(1, c.realKernSize)
 	}
 
 	// init FFT plans
+	log.Printf("7")
 	c.fwPlan = newFFT3DR2C(c.realKernSize[X], c.realKernSize[Y], c.realKernSize[Z])
+	log.Printf("8")
 	c.bwPlan = newFFT3DC2R(c.realKernSize[X], c.realKernSize[Y], c.realKernSize[Z])
 
 	// init FFT kernel
@@ -200,11 +208,14 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 
 	output := c.fftCBuf[0]
 	input := c.fftRBuf[0]
+	log.Printf("9")
 	fftKern := data.NewSlice(1, physKSize)
+	log.Printf("10")
 	kfull := data.NewSlice(1, output.Size()) // not yet exploiting symmetry
 	kfulls := kfull.Scalars()
 	kCSize := physKSize
 	kCSize[X] *= 2                     // size of kernel after removing Y,Z redundant parts, but still complex
+	log.Printf("11")
 	kCmplx := data.NewSlice(1, kCSize) // not yet exploiting X symmetry
 	kc := kCmplx.Scalars()
 
@@ -212,11 +223,14 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 		for j := i; j < 3; j++ { // upper triangular part
 			if realKern[i][j] != nil { // ignore 0's
 				// FW FFT
+				log.Printf("12 + (%+v, %+v) \n", i, j)
 				data.Copy(input, realKern[i][j])
+				log.Printf("13 + (%+v, %+v) \n", i, j)
 				err := c.fwPlan.ExecAsync(input, output) // FW FFT
 				if err != nil {
 					fmt.Printf("error enqueuing forward fft in init: %+v \n ", err)
 				}
+				log.Printf("14 + (%+v, %+v) \n", i, j)
 				data.Copy(kfull, output) // need to wait??
 
 				// extract non-redundant part (Y,Z symmetry)
@@ -230,6 +244,7 @@ func (c *DemagConvolution) init(realKern [3][3]*data.Slice) {
 
 				// extract real parts (X symmetry)
 				scaleRealParts(fftKern, kCmplx, 1/float32(c.fwPlan.InputLen()))
+				log.Printf("15 + (%+v, %+v) \n", i, j)
 				c.kern[i][j] = GPUCopy(fftKern)
 			}
 		}
