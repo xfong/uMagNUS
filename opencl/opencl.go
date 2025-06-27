@@ -154,10 +154,9 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	}
 
 	// release the old marker to the memory will be deallocated before updating the tracker
-	if ClCmdSeqTail != ClInitMarker {
-		if err = ClCmdSeqTail.Release(); err != nil {
-			log.Fatalf("failed to release marker event in inserteventtocmdseqtail: %+v \n", err)
-		}
+	log.Printf("ClCmdSeqTail: %+v \n", ClCmdSeqTail)
+	if err = ClCmdSeqTail.Release(); err != nil {
+		log.Fatalf("failed to release marker event in inserteventtocmdseqtail: %+v \n", err)
 	}
 
 	// update tracker
