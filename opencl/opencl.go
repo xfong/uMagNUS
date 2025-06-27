@@ -138,14 +138,18 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	var marker *cl.Event
 
 	log.Println("attempting to update event to cmd seq...")
+	marker = nil
+	queue = nil
 	if queue, err = CreateCommandQueue(); err != nil { // create queue
 		log.Fatalf("failed to create command queue in addeventtosequence: %+v \n", err)
 		return
 	}
 
 	// generate the new event marker
-	log.Printf("generate ClCmdSeqTail dependency: %+v \n", ev)
-	if marker, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{ClCmdSeqTail, ev}); err != nil {
+	log.Printf("input: %+v \n", ev)
+	log.Printf("current tail: %+v \n", ClCmdSeqTail)
+	marker = ClCmdSeqTail
+	if ClCmdSeqTail, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{marker, ev}); err != nil {
 		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err)
 		return
 	}
@@ -156,15 +160,13 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	}
 
 	// release the old marker to the memory will be deallocated before updating the tracker
-	log.Printf("ClCmdSeqTail: %+v \n", ClCmdSeqTail)
-	if err = ClCmdSeqTail.Release(); err != nil {
+	log.Printf("new tail: %+v \n", ClCmdSeqTail)
+	log.Printf("releasing: %+v \n", marker)
+	if err = marker.Release(); err != nil {
 		log.Fatalf("failed to release marker event in inserteventtocmdseqtail: %+v \n", err)
 		return
 	}
 
-	// update tracker
-	log.Printf("update ClCmdSeqTail: %+v \n", marker)
-	ClCmdSeqTail = marker
 }
 
 // wait on all enqueued commands to finish. Similar to waiting for command queue to finish
