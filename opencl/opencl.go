@@ -144,6 +144,7 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	}
 
 	// generate the new event marker
+	log.Printf("generate ClCmdSeqTail dependency: %+v \n", ev)
 	if marker, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{ClCmdSeqTail, ev}); err != nil {
 		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err)
 		return
