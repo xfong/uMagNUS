@@ -96,7 +96,9 @@ func WaitForEvents(events []*Event) error {
 }
 
 func newEvent(ev C.cl_event) *Event {
-	return &Event{clEvent: ev}
+	evt := new(Event)
+	evt.clEvent = ev
+	return &evt
 	//runtime.SetFinalizer(ev, releaseEvent) // needed (??)
 	//return ev
 }
