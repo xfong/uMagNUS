@@ -162,6 +162,7 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	}
 
 	// release the old marker to the memory will be deallocated before updating the tracker
+	ClCmdSeqTail = tmpMarker
 	log.Printf("new tail: %+v \n", ClCmdSeqTail)
 	log.Printf("releasing: %+v \n", marker)
 	if err = marker.Release(); err != nil {
