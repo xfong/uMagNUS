@@ -147,9 +147,11 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 
 	// generate the new event marker
 	log.Printf("input: %+v \n", ev)
-	log.Printf("current tail: %+v \n", ClCmdSeqTail)
 	marker = ClCmdSeqTail
-	if ClCmdSeqTail, err = queue.EnqueueMarkerWithWaitList([]*cl.Event{marker, ev}); err != nil {
+	ClCmdSeqTail, err := queue.EnqueueMarkerWithWaitList([]*cl.Event{marker, ev})
+	log.Printf("previous tail: %+v \n", marker)
+	log.Printf("current tail: %+v \n", ClCmdSeqTail)
+	if err != nil {
 		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err)
 		return
 	}
