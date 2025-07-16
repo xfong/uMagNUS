@@ -56,6 +56,7 @@ func Init(gpu int) {
 		return // needed for tests
 	}
 
+	log.Printf("Initializing...")
 	runtime.LockOSThread()
 
 	// Attempt to get list of opencl platforms. Return if failed.
@@ -296,6 +297,8 @@ func Init(gpu int) {
 	data.EnableGPU(memFree, memFree, MemCpy, MemCpyDtoH, MemCpyHtoD)
 
 	initialized = true
+
+	log.Printf("Finish initialization.")
 
 }
 
