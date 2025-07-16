@@ -95,8 +95,8 @@ func WaitForEvents(events []*Event) error {
 	return toError(C.clWaitForEvents(C.cl_uint(WaitListLen), eventWaitListPtr))
 }
 
-func newEvent(clEvent C.cl_event) *Event {
-	return &Event{clEvent: clEvent}
+func newEvent(ev C.cl_event) *Event {
+	return &Event{clEvent: ev}
 	//runtime.SetFinalizer(ev, releaseEvent) // needed (??)
 	//return ev
 }
@@ -105,7 +105,7 @@ func eventListPtr(el []*Event) (*C.cl_event, int) {
 	if el == nil {
 		return nil, 0
 	}
-	var elist []C.cl_event
+	elist := []C.cl_event{}
 	for _, e := range el {
 		if e != nil {
 			elist = append(elist, e.clEvent)
