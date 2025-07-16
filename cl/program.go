@@ -190,7 +190,7 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"runtime"
+	//"runtime"
 	"strings"
 	"unsafe"
 )
@@ -287,26 +287,30 @@ func go_link_program_notify(alt_program C.cl_program, user_data unsafe.Pointer) 
 }
 
 // ////////////// Basic Functions ////////////////
-func releaseProgram(p *Program) {
+func releaseProgram(p *Program) error {
 	if p.clProgram != nil {
-		C.clReleaseProgram(p.clProgram)
+		err := toError(C.clReleaseProgram(p.clProgram))
 		p.clProgram = nil
+		return err
 	}
+	return ErrInvalidProgram
 }
 
-func retainProgram(p *Program) {
+func retainProgram(p *Program) error {
 	if p.clProgram != nil {
-		C.clRetainProgram(p.clProgram)
+		err := toError(C.clRetainProgram(p.clProgram))
+		return err
 	}
+	return ErrInvalidProgram
 }
 
 // ////////////// Abstract Functions ////////////////
-func (p *Program) Release() {
-	releaseProgram(p)
+func (p *Program) Release() error {
+	return releaseProgram(p)
 }
 
-func (p *Program) Retain() {
-	retainProgram(p)
+func (p *Program) Retain() error {
+	return retainProgram(p)
 }
 
 func (p *Program) BuildProgram(devices []*Device, options string) error {
@@ -370,7 +374,7 @@ func (p *Program) CreateKernel(name string) (*Kernel, error) {
 		return nil, toError(err)
 	}
 	kernel := &Kernel{clKernel: clKernel, name: name}
-	runtime.SetFinalizer(kernel, releaseKernel)
+	//runtime.SetFinalizer(kernel, releaseKernel) //needed (??)
 	return kernel, nil
 }
 
@@ -390,7 +394,7 @@ func (ctx *Context) CreateProgramWithSource(sources []string) (*Program, error) 
 		return nil, ErrUnknown
 	}
 	program := &Program{clProgram: clProgram, devices: ctx.devices}
-	runtime.SetFinalizer(program, releaseProgram)
+	//runtime.SetFinalizer(program, releaseProgram) // needed (??)
 	return program, nil
 }
 
@@ -416,7 +420,7 @@ func (ctx *Context) CreateProgramWithBuiltInKernels(devices []*Device, kernel_na
 		return nil, ErrUnknown
 	}
 	program := &Program{clProgram: clProgram, devices: ctx.devices}
-	runtime.SetFinalizer(program, releaseProgram)
+	//runtime.SetFinalizer(program, releaseProgram) // needed (??)
 	return program, nil
 }
 
@@ -927,7 +931,7 @@ func (ctx *Context) CreateProgramWithBinary(deviceList []*Device, program_length
 	}
 
 	program := &Program{clProgram: clProgram, devices: ctx.devices}
-	runtime.SetFinalizer(program, releaseProgram)
+	//runtime.SetFinalizer(program, releaseProgram) // needed (??)
 	return program, nil
 }
 

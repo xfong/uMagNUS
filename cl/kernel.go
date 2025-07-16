@@ -63,26 +63,29 @@ func go_native_kernel(user_data unsafe.Pointer) {
 	go_native_kernel_func[c_user_data[1]](c_user_data[0])
 }
 
-func releaseKernel(k *Kernel) {
+func releaseKernel(k *Kernel) error {
 	if k.clKernel != nil {
-		C.clReleaseKernel(k.clKernel)
+		err := toError(C.clReleaseKernel(k.clKernel))
 		k.clKernel = nil
+		return err
 	}
+	return ErrInvalidKernel
 }
 
-func retainKernel(k *Kernel) {
+func retainKernel(k *Kernel) error {
 	if k.clKernel != nil {
-		C.clRetainKernel(k.clKernel)
+		return toError(C.clRetainKernel(k.clKernel))
 	}
+	return ErrInvalidKernel
 }
 
 // ////////////// Abstract Functions ////////////////
-func (k *Kernel) Release() {
-	releaseKernel(k)
+func (k *Kernel) Release() error {
+	return releaseKernel(k)
 }
 
-func (k *Kernel) Retain() {
-	retainKernel(k)
+func (k *Kernel) Retain() error {
+	return retainKernel(k)
 }
 
 func (k *Kernel) SetArgs(args ...interface{}) error {

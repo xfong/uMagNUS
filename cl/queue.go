@@ -19,7 +19,7 @@ static cl_int CLGetCommandQueueInfoParamUnsafe(cl_command_queue          command
 import "C"
 
 import (
-	"runtime"
+	//"runtime"
 	"unsafe"
 )
 
@@ -50,20 +50,20 @@ type CommandQueue struct {
 type CLCommandQueueProperties C.cl_command_queue_properties
 
 // ////////////// Basic Functions ////////////////
-func retainCommandQueue(q *CommandQueue) error {
-	if q.clQueue != nil {
-		return toError(C.clRetainCommandQueue(q.clQueue))
-	}
-	return nil
-}
-
 func releaseCommandQueue(q *CommandQueue) error {
 	if q.clQueue != nil {
 		err := toError(C.clReleaseCommandQueue(q.clQueue))
 		q.clQueue = nil
 		return err
 	}
-	return nil
+	return ErrInvalidCommandQueue
+}
+
+func retainCommandQueue(q *CommandQueue) error {
+	if q.clQueue != nil {
+		return toError(C.clRetainCommandQueue(q.clQueue))
+	}
+	return ErrInvalidCommandQueue
 }
 
 // ////////////// Abstract Functions ////////////////
@@ -97,7 +97,7 @@ func (ctx *Context) CreateCommandQueue(device *Device, properties CommandQueuePr
 		return nil, ErrUnknown
 	}
 	commandQueue := &CommandQueue{clQueue: clQueue, device: device}
-	runtime.SetFinalizer(commandQueue, releaseCommandQueue)
+	//runtime.SetFinalizer(commandQueue, releaseCommandQueue) needed (??)
 	return commandQueue, nil
 }
 

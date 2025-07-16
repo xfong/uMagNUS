@@ -44,7 +44,7 @@ static cl_context CLCreateContextFromTypeOnPlatform(      const cl_platform_id		
 import "C"
 
 import (
-	"runtime"
+	//"runtime"
 	"unsafe"
 )
 
@@ -92,17 +92,20 @@ func go_ctx_notify(errinfo *C.char, private_info unsafe.Pointer, cb C.int, user_
 	ctx_notify[c_user_data[1]](C.GoString(errinfo), private_info, int(cb), c_user_data[0])
 }
 
-func releaseContext(c *Context) {
+func releaseContext(c *Context) error {
 	if c.clContext != nil {
-		C.clReleaseContext(c.clContext)
+		err := toError(C.clReleaseContext(c.clContext))
 		c.clContext = nil
+		return err
 	}
+	return ErrInvalidContext
 }
 
-func retainContext(c *Context) {
+func retainContext(c *Context) error {
 	if c.clContext != nil {
-		C.clRetainContext(c.clContext)
+		return toError(C.clRetainContext(c.clContext))
 	}
+	return ErrInvalidContext
 }
 
 func CreateContext(devices []*Device) (*Context, error) {
@@ -133,7 +136,7 @@ func CreateContextUnsafe(properties *C.cl_context_properties, devices []*Device,
 		return nil, ErrUnknown
 	}
 	context := &Context{clContext: clContext, devices: devices}
-	runtime.SetFinalizer(context, releaseContext)
+	//runtime.SetFinalizer(context, releaseContext) // needed (??)
 	return context, nil
 }
 
@@ -161,21 +164,21 @@ func CreateContextFromTypeUnsafe(properties *C.cl_context_properties, device_typ
 	contextTmp := &Context{clContext: clContext, devices: nil}
 	cDevices, errD := contextTmp.GetDevices()
 	if errD != nil {
-		runtime.SetFinalizer(contextTmp, releaseContext)
+		//runtime.SetFinalizer(contextTmp, releaseContext) // needed (??)
 		return contextTmp, toError(err)
 	}
 	context := &Context{clContext: clContext, devices: cDevices}
-	runtime.SetFinalizer(context, releaseContext)
+	//runtime.SetFinalizer(context, releaseContext) // needed (??)
 	return context, nil
 }
 
 // //////////////// Abstract Functions ////////////////
-func (ctx *Context) Release() {
-	releaseContext(ctx)
+func (ctx *Context) Release() error {
+	return releaseContext(ctx)
 }
 
-func (ctx *Context) Retain() {
-	retainContext(ctx)
+func (ctx *Context) Retain() error {
+	return retainContext(ctx)
 }
 
 func (ctx *Context) GetReferenceCount() (int, error) {

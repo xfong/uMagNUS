@@ -17,7 +17,7 @@ static cl_int CLSetEventCallback(      cl_event		event,
 import "C"
 
 import (
-	"runtime"
+	//"runtime"
 	"unsafe"
 )
 
@@ -66,18 +66,18 @@ func go_set_event_callback(event C.cl_event, callback_status C.cl_int, user_data
 
 func releaseEvent(ev *Event) error {
 	if ev.clEvent != nil {
-		tmpEv := ev.clEvent
+		err := toError(C.clReleaseEvent(ev.clEvent))
 		ev.clEvent = nil
-		return toError(C.clReleaseEvent(tmpEv))
+		return err
 	}
-	return nil
+	return ErrInvalidEvent
 }
 
 func retainEvent(ev *Event) error {
 	if ev.clEvent != nil {
 		return toError(C.clRetainEvent(ev.clEvent))
 	}
-	return nil
+	return ErrInvalidEvent
 }
 
 // Waits on the host thread for commands identified by event objects in
@@ -96,9 +96,9 @@ func WaitForEvents(events []*Event) error {
 }
 
 func newEvent(clEvent C.cl_event) *Event {
-	ev := &Event{clEvent: clEvent}
-	runtime.SetFinalizer(ev, releaseEvent)
-	return ev
+	return &Event{clEvent: clEvent}
+	//runtime.SetFinalizer(ev, releaseEvent) // needed (??)
+	//return ev
 }
 
 func eventListPtr(el []*Event) (*C.cl_event, int) {

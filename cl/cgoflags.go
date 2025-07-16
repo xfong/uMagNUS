@@ -7,6 +7,6 @@ package cl
 //
 ////default location:
 //#cgo LDFLAGS:-L./stubs/lib
-//#cgo CFLAGS: -I./stubs/include -std=c99
+//#cgo CFLAGS: -I./stubs/include
 //
 import "C"

@@ -40,7 +40,7 @@ import "C"
 import (
 	"fmt"
 	"reflect"
-	"runtime"
+	//"runtime"
 	"unsafe"
 )
 
@@ -155,23 +155,26 @@ func go_set_memdestructor_callback(memObj C.cl_mem, user_data unsafe.Pointer) {
 	go_set_memdestructor_callback_func[c_user_data[1]](memObj, c_user_data[0])
 }
 
-func retainMemObject(b *MemObject) {
+func releaseMemObject(b *MemObject) error {
 	if b.clMem != nil {
-		C.clRetainMemObject(b.clMem)
+		err := toError(C.clReleaseMemObject(b.clMem))
+		b.clMem = nil
+		return err
 	}
+	return ErrInvalidMemObject
 }
 
-func releaseMemObject(b *MemObject) {
+func retainMemObject(b *MemObject) error {
 	if b.clMem != nil {
-		C.clReleaseMemObject(b.clMem)
-		b.clMem = nil
+		return toError(C.clRetainMemObject(b.clMem))
 	}
+	return ErrInvalidMemObject
 }
 
 func newMemObject(mo C.cl_mem, size int) *MemObject {
-	memObject := &MemObject{clMem: mo, size: size}
-	runtime.SetFinalizer(memObject, releaseMemObject)
-	return memObject
+	return &MemObject{clMem: mo, size: size}
+	//runtime.SetFinalizer(memObject, releaseMemObject) // needed (??)
+	//return memObject
 }
 
 // ////////////// Abstract Functions ////////////////
@@ -200,12 +203,12 @@ func (mb *MappedMemObject) SlicePitch() int {
 	return mb.slicePitch
 }
 
-func (b *MemObject) Retain() {
-	retainMemObject(b)
+func (b *MemObject) Retain() error {
+	return retainMemObject(b)
 }
 
-func (b *MemObject) Release() {
-	releaseMemObject(b)
+func (b *MemObject) Release() error {
+	return releaseMemObject(b)
 }
 
 func (b *MemObject) GetType() (string, error) {
