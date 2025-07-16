@@ -299,6 +299,7 @@ func Init(gpu int) {
 	initialized = true
 
 	log.Printf("Finish initialization.")
+	log.Printf("ClCmdSeqTail = %+v \n", ClCmdSeqTail)
 
 }
 
