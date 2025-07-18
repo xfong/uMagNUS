@@ -21,10 +21,11 @@ type Bytes struct {
 // initialised to zeros.
 func NewBytes(Len int) *Bytes {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
-	ptr, err := ClCtx.CreateEmptyBuffer(cl.MemReadWrite, Len)
+	ptr := new(cl.MemObject)
+	*ptr, err = ClCtx.CreateEmptyBuffer(cl.MemReadWrite, Len)
 	if err != nil {
 		panic(err)
 	}
@@ -43,7 +44,7 @@ func NewBytes(Len int) *Bytes {
 		log.Panicf("failed to create command queue in newbytes: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueFillBuffer(ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, evtWL); err != nil {
+	if event, err = queue.EnqueueFillBuffer(*ptr, unsafe.Pointer(&zeroPattern), 1, 0, Len, evtWL); err != nil {
 		log.Panicf("failed to fill buffer in newbytes: %+v \n", err)
 	}
 
@@ -86,8 +87,8 @@ func (src *Bytes) Download(dst []byte) {
 // data.Index can be used to find the index for x,y,z.
 func (dst *Bytes) Set(index int, value byte) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	if index < 0 || index >= dst.Len {
 		log.Panic("Bytes.Set: index out of range:", index)
@@ -107,7 +108,8 @@ func (dst *Bytes) Set(index int, value byte) {
 		log.Panicf("failed to create command queue in bytes.set: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(dst.Ptr), false, index, 1, unsafe.Pointer(&src), evtWL); err != nil {
+	dst_ := (*cl.MemObject)(dst.Ptr)
+	if event, err = queue.EnqueueWriteBuffer(*dst_, false, index, 1, unsafe.Pointer(&src), evtWL); err != nil {
 		log.Panicf("failed to fill buffer in bytes.set: %+v \n", err)
 	}
 
@@ -134,8 +136,8 @@ func (dst *Bytes) Set(index int, value byte) {
 //	list of events rather than an individual event
 func (src *Bytes) Get(index int) byte {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	if index < 0 || index >= src.Len {
 		log.Panic("Bytes.Set: index out of range:", index)
@@ -155,7 +157,8 @@ func (src *Bytes) Get(index int) byte {
 		log.Panicf("failed to create command queue in bytes.get: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueReadBufferByte((*cl.MemObject)(src.Ptr), false, index, dst, evtWL); err != nil {
+	src_ := (*cl.MemObject)(src.Ptr)
+	if event, err = queue.EnqueueReadBufferByte(*src_, false, index, dst, evtWL); err != nil {
 		log.Panicf("failed to read buffer in bytes.get: %+v \n", err)
 	}
 

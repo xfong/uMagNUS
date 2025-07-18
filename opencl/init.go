@@ -13,8 +13,8 @@ import (
 )
 
 type GPU struct {
-	Platform *cl.Platform
-	Device   *cl.Device
+	Platform cl.Platform
+	Device   cl.Device
 }
 
 var (
@@ -26,16 +26,16 @@ var (
 	GPUList      []GPU                     // List of GPUs available
 	Synchronous  bool                      // for debug: synchronize command queue at every kernel launch
 	Debug        = false                   // for debug: synchronize command queue after every kernel launch
-	ClPlatforms  = []*cl.Platform{}        // list of platforms available
-	ClPlatform   = (*cl.Platform)(nil)     // platform the global OpenCL context is attached to
-	ClDevices    = []*cl.Device{}          // list of devices global OpenCL context may be associated with
-	ClDevice     = (*cl.Device)(nil)       // device associated with global OpenCL context
-	ClCtx        = (*cl.Context)(nil)      // global OpenCL context
-	//ClCmdQueue   = (*cl.CommandQueue)(nil) // command queues attached to global OpenCL context (needed??)
-	ClLatestCmd  = []*cl.Event{}           // event for the latest device commands that was enqueued by a host function (should never be nil)
-	ClCmdSeqTail = (*cl.Event)(nil)        // latest enqueued event in the order of enqueue (helpful for flushing)
-	ClInitMarker = (*cl.Event)(nil)        // first event enqueued and completed
-	ClProgram    = (*cl.Program)(nil)      // handle to program in the global OpenCL context
+	ClPlatforms  = []cl.Platform{}        // list of platforms available
+	ClPlatform   = cl.EmptyPlatform     // platform the global OpenCL context is attached to
+	ClDevices    = []cl.Device{}          // list of devices global OpenCL context may be associated with
+	ClDevice     = cl.EmptyDevice       // device associated with global OpenCL context
+	ClCtx        = cl.EmptyContext      // global OpenCL context
+	//ClCmdQueue   = (cl.CommandQueue)(nil) // command queues attached to global OpenCL context (needed??)
+	ClLatestCmd  = []cl.Event{}           // event for the latest device commands that was enqueued by a host function (should never be nil)
+	ClCmdSeqTail = cl.EmptyEvent        // latest enqueued event in the order of enqueue (helpful for flushing)
+	ClInitMarker = cl.EmptyEvent        // first event enqueued and completed
+	ClProgram    = cl.EmptyProgram      // handle to program in the global OpenCL context
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 	initialized  = false                   // Initial state defaults to false
 	ClCUnits     int                       // Get number of compute units available
@@ -60,7 +60,7 @@ func Init(gpu int) {
 	runtime.LockOSThread()
 
 	// Attempt to get list of opencl platforms. Return if failed.
-	var platforms []*cl.Platform
+	var platforms []cl.Platform
 	var err error
 	platforms, err = cl.GetPlatforms()
 	if err != nil {
@@ -69,11 +69,11 @@ func Init(gpu int) {
 	}
 
 	// Build list of opencl devices
-	tmpClPlatforms := []*cl.Platform{}
+	tmpClPlatforms := []cl.Platform{}
 	tmpGpuList := []GPU{}
-	tmpClDevices := []*cl.Device{}
+	tmpClDevices := []cl.Device{}
 	for _, plat := range platforms {
-		var pDevices []*cl.Device
+		var pDevices []cl.Device
 		if gpu < 0 {
 			pDevices, err = plat.GetDevices(cl.DeviceTypeCPU)
 		} else {
@@ -133,8 +133,8 @@ func Init(gpu int) {
 	GPUInfo = fmt.Sprint("OpenCL C Version ", Version, "\n// GPU: ", DevName, "(", (TotalMem)/(1024*1024), "MB) \n")
 
 	// Create opencl context on selected device
-	var context *cl.Context
-	context, err = cl.CreateContext([]*cl.Device{ClDevice})
+	var context cl.Context
+	context, err = cl.CreateContext([]cl.Device{ClDevice})
 	if err != nil {
 		fmt.Printf("CreateContext failed: %+v \n", err)
 		return
@@ -155,16 +155,16 @@ func Init(gpu int) {
 	//ClCmdQueue = queue // (needed??)
 
 	// Create opencl program on selected opencl device
-	var program *cl.Program
+	var program cl.Program
 	nobinary := bool(false)
 
 	// Attempt to obtain binary from library. Compile from source if unable to...
-	programBytes := ld.GetClDeviceBinary(ClDevice)
+	programBytes := ld.GetClDeviceBinary(&ClDevice)
 	if programBytes == nil {
 		fmt.Println("Unable to get program binary!")
 		nobinary = true
 	} else {
-		if program, err = context.CreateProgramWithBinary([]*cl.Device{ClDevice}, []int{len(programBytes)}, [][]byte{programBytes}); err != nil {
+		if program, err = context.CreateProgramWithBinary([]cl.Device{ClDevice}, []int{len(programBytes)}, [][]byte{programBytes}); err != nil {
 			fmt.Printf("Unable to load binary from library...continuing to compile code \n")
 			nobinary = true
 		}
@@ -192,7 +192,7 @@ func Init(gpu int) {
 				argString += fmt.Sprint(argString, " -D__AMDGPU_FP32ATOMICS_0__ -D__AMDGPU_FP64ATOMICS_0__ ")
 			}
 		}
-		if err = program.BuildProgram([]*cl.Device{ClDevice}, argString); err != nil {
+		if err = program.BuildProgram([]cl.Device{ClDevice}, argString); err != nil {
 			fmt.Printf("BuildProgram failed: %+v \n", err)
 			return
 		}
@@ -206,7 +206,7 @@ func Init(gpu int) {
 	if kernelsString, errK := program.GetKernelNames(); errK == nil {
 		kernelNamesArray := strings.Split(kernelsString, ";")
 		for _, kernname := range kernelNamesArray {
-			KernList[kernname], err = program.CreateKernel(kernname)
+			*(KernList[kernname]), err = program.CreateKernel(kernname)
 			if err != nil {
 				fmt.Printf("CreateKernel failed: %+v \n", err)
 				completed = false
@@ -303,11 +303,11 @@ func Init(gpu int) {
 
 }
 
-func (s *GPU) getGpuDevice() *cl.Device {
+func (s *GPU) getGpuDevice() cl.Device {
 	return s.Device
 }
 
-func (s *GPU) getGpuPlatform() *cl.Platform {
+func (s *GPU) getGpuPlatform() cl.Platform {
 	return s.Platform
 }
 

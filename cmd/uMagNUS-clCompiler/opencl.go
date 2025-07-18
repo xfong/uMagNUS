@@ -7,8 +7,8 @@ import (
 )
 
 type GPU struct {
-	Platform *cl.Platform
-	Device   *cl.Device
+	Platform cl.Platform
+	Device   cl.Device
 }
 
 var (
@@ -18,11 +18,11 @@ var (
 	PlatformInfo string         // Human-readable OpenCL platform description
 	GPUInfo      string         // Human-readable GPU description
 	GPUList      []GPU          // List of GPUs available
-	ClPlatforms  []*cl.Platform // list of platforms available
-	ClPlatform   *cl.Platform   // platform the global OpenCL context is attached to
-	ClDevices    []*cl.Device   // list of devices global OpenCL context may be associated with
-	ClDevice     *cl.Device     // device associated with global OpenCL context
-	ClCtx        *cl.Context    // global OpenCL context
+	ClPlatforms  []cl.Platform // list of platforms available
+	ClPlatform   cl.Platform   // platform the global OpenCL context is attached to
+	ClDevices    []cl.Device   // list of devices global OpenCL context may be associated with
+	ClDevice     cl.Device     // device associated with global OpenCL context
+	ClCtx        cl.Context    // global OpenCL context
 	gpuIdMap     map[string]int // map of first instances of GPU as defined by the name
 )
 
@@ -31,9 +31,9 @@ func InitGPUs() {
 		fmt.Println("Initializing OpenCL...")
 	}
 	platforms, err := cl.GetPlatforms()
-	tmpClPlatforms := []*cl.Platform{}
+	tmpClPlatforms := []cl.Platform{}
 	tmpGpuList := []GPU{}
-	tmpClDevices := []*cl.Device{}
+	tmpClDevices := []cl.Device{}
 
 	if err != nil {
 		fmt.Printf("Failed to get platforms: %+v \n", err)
@@ -43,7 +43,7 @@ func InitGPUs() {
 		fmt.Println("  Scanning platforms for GPUs...")
 	}
 	for _, plat := range platforms {
-		var pDevices []*cl.Device
+		var pDevices []cl.Device
 		pDevices, err = plat.GetDevices(cl.DeviceTypeGPU)
 		if err != nil {
 			fmt.Printf("Failed to get devices: %+v \n", err)
@@ -74,9 +74,9 @@ func InitCPUs() {
 		fmt.Println("Initializing OpenCL...")
 	}
 	platforms, err := cl.GetPlatforms()
-	tmpClPlatforms := []*cl.Platform{}
+	tmpClPlatforms := []cl.Platform{}
 	tmpGpuList := []GPU{}
-	tmpClDevices := []*cl.Device{}
+	tmpClDevices := []cl.Device{}
 
 	if err != nil {
 		fmt.Printf("Failed to get platforms: %+v \n", err)
@@ -86,7 +86,7 @@ func InitCPUs() {
 		fmt.Println("  Scanning platforms for CPUs...")
 	}
 	for _, plat := range platforms {
-		var pDevices []*cl.Device
+		var pDevices []cl.Device
 		pDevices, err = plat.GetDevices(cl.DeviceTypeCPU)
 		if err != nil {
 			fmt.Printf("Failed to get devices: %+v \n", err)

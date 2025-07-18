@@ -18,14 +18,14 @@ const (
 )
 
 // Assumes kernel arguments set prior to launch
-func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *cl.Event {
+func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl.Event {
 	var err error
-	var queue *cl.CommandQueue
-	var KernEvent *cl.Event
+	var queue cl.CommandQueue
+	var KernEvent cl.Event
 
 	if KernList[kernname] == nil { // get kernel object
 		util.Fatal("Kernel " + kernname + " does not exist!")
-		return nil
+		return cl.EmptyEvent
 	}
 
 	if Debug { // debug
@@ -34,13 +34,13 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *
 
 	if queue, err = CreateCommandQueue(); err != nil { // get command queue
 		util.Fatal(err)
-		return nil
+		return cl.EmptyEvent
 	}
 
 	// execute
-	if KernEvent, err = queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events); err != nil {
+	if KernEvent, err = queue.EnqueueNDRangeKernel(*(KernList[kernname]), nil, gridDim, workDim, events); err != nil {
 		util.Fatal(err)
-		return nil
+		return cl.EmptyEvent
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush to device
@@ -83,14 +83,10 @@ func SetKernelArgWrapper(kernname string, index int, arg interface{}) {
 }
 
 // return a command queue for the initialized context nd device
-func CreateCommandQueue() (*cl.CommandQueue, error) {
-	if ClCtx == nil {
-		log.Panicf("ClCtx (context) cannot be nil! \n")
-		return nil, nil
-	}
-	if ClDevice == nil {
-		log.Panicf("ClDevice (device) cannot be nil! \n")
-		return nil, nil
+func CreateCommandQueue() (cl.CommandQueue, error) {
+	if initialized == false {
+		log.Panicf("opencl not initialized! \n")
+		return cl.EmptyCommandQueue, nil
 	}
 	return ClCtx.CreateCommandQueue(ClDevice, 0)
 }
@@ -98,8 +94,8 @@ func CreateCommandQueue() (*cl.CommandQueue, error) {
 // initialize cl.Event markers
 func InitMarkers() {
 	var err error
-	var queue *cl.CommandQueue
-	var marker *cl.Event
+	var queue cl.CommandQueue
+	var marker cl.Event
 
 	if queue, err = CreateCommandQueue(); err != nil { // get queue
 		log.Panicf("failed to create command queue in InitMarkers: %+v \n", err)
@@ -126,20 +122,18 @@ func InitMarkers() {
 	}
 
 	// update
-	ClLatestCmd = []*cl.Event{marker}
+	ClLatestCmd = []cl.Event{marker}
 
 }
 
 // update ClCmdSeqTail to track event for an enqueued command that
 // has been enqueued
-func InsertEventToCmdSeqTail(ev *cl.Event) {
+func InsertEventToCmdSeqTail(ev cl.Event) {
 	var err error
-	var queue *cl.CommandQueue
-	var marker *cl.Event
+	var queue cl.CommandQueue
+	var marker cl.Event
 
 	log.Println("attempting to update event to cmd seq...")
-	marker = nil
-	queue = nil
 	if queue, err = CreateCommandQueue(); err != nil { // create queue
 		log.Fatalf("failed to create command queue in addeventtosequence: %+v \n", err)
 		return
@@ -148,7 +142,7 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	// generate the new event marker
 	log.Printf("input: %+v \n", ev)
 	marker = ClCmdSeqTail
-	tmpMarker, err2 := queue.EnqueueMarkerWithWaitList([]*cl.Event{marker, ev})
+	tmpMarker, err2 := queue.EnqueueMarkerWithWaitList([]cl.Event{marker, ev})
 	log.Printf("previous tail: %+v \n", marker)
 	log.Printf("current tail: %+v \n", tmpMarker)
 	if err2 != nil {
@@ -184,20 +178,12 @@ func WaitCommandSequence() {
 
 // wait for event in ClCmdSeqTail
 func WaitCmdSeqTail() error {
-	if ClCmdSeqTail == nil {
-		fmt.Printf("ClCmdSeqTail cannot be nil in waitlastmarker! \n")
-	}
-	return cl.WaitForEvents([]*cl.Event{ClCmdSeqTail})
+	return cl.WaitForEvents([]cl.Event{ClCmdSeqTail})
 }
 
 // update latest device command that was enqueued by a host function
-func UpdateLatestCmdSingle(ev *cl.Event) {
+func UpdateLatestCmdSingle(ev cl.Event) {
 	var err error
-
-	if ev == nil {
-		fmt.Printf("ev cannot be nil in updatelatestcmdsingle! \n")
-		return
-	}
 
 	// release all previous events for commands that were enqueued
 	// to deallocate memory (no longer need to track them within
@@ -207,23 +193,18 @@ func UpdateLatestCmdSingle(ev *cl.Event) {
 	}
 
 	// upate tracker
-	ClLatestCmd = []*cl.Event{ev}
+	ClLatestCmd = []cl.Event{ev}
 }
 
 // update latest list of device commands that was enqueued by a host function
-func UpdateLatestCmdList(evList []*cl.Event) {
+func UpdateLatestCmdList(evList []cl.Event) {
 	var err error
 
 	// error check input to ensure it is neither a nil pointer nor
 	// an empty list
-	if evList == nil {
-		fmt.Printf("evList cannot be nil in updatelatestcmdlist! \n")
+	if len(evList) == 0 {
+		fmt.Printf("evList cannot be empty in updatelatestcmdlist! \n")
 		return
-	} else {
-		if len(evList) == 0 {
-			fmt.Printf("evList cannot be empty in updatelatestcmdlist! \n")
-			return
-		}
 	}
 
 	// release all previous events for commands that were enqueued
@@ -256,11 +237,6 @@ func ReleasePreviousDeviceCommandEvents() error {
 
 // wait for latest device commands enqueued by a host function
 func WaitLatestCmd() error {
-	// error check
-	if ClLatestCmd == nil {
-		fmt.Printf("ClLatestCmd cannot be nil in waitlastevent! \n")
-	}
-
 	// if ClLatestCmd has events, wait for them to complete
 	if len(ClLatestCmd) > 0 {
 		return cl.WaitForEvents(ClLatestCmd)
@@ -270,6 +246,6 @@ func WaitLatestCmd() error {
 }
 
 // get the latest device commands enqueued by a host function
-func GetLatestCmd() []*cl.Event {
+func GetLatestCmd() []cl.Event {
 	return ClLatestCmd
 }

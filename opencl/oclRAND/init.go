@@ -1,9 +1,10 @@
 package oclRAND
 
 import (
-	"github.com/seeder-research/uMagNUS/cl"
 	"log"
 	"unsafe"
+
+	cl "github.com/seeder-research/uMagNUS/cl"
 )
 
 type config struct {
@@ -12,26 +13,28 @@ type config struct {
 
 var (
 	Synchronous bool
-	clCtx       = (*cl.Context)(nil)
-	clDevice    = (*cl.Device)(nil)
+	clCtx       cl.Context
+	clDevice    cl.Device
 	KernList    = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
+	initialized = bool(false)
 )
 
-func Init(ctx *cl.Context, dev *cl.Device, synch bool, kList map[string]*cl.Kernel) {
+func Init(ctx cl.Context, dev cl.Device, synch bool, kList map[string]*cl.Kernel) {
 	Synchronous = synch
 	clCtx = ctx
 	clDevice = dev
 	KernList = kList
+	initialized = true
 }
 
-func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *cl.Event {
+func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl.Event {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	if KernList[kernname] == nil {
 		log.Panic("Kernel " + kernname + " does not exist!")
-		return nil
+		return cl.EmptyEvent
 	}
 
 	// get command queue
@@ -40,9 +43,9 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *
 	}
 
 	// execute
-	if event, err = queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events); err != nil {
+	if event, err = queue.EnqueueNDRangeKernel(*(KernList[kernname]), nil, gridDim, workDim, events); err != nil {
 		log.Fatal(err)
-		return nil
+		return cl.EmptyEvent
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
@@ -83,14 +86,10 @@ func SetKernelArgWrapper(kernname string, index int, arg interface{}) {
 	}
 }
 
-func CreateCommandQueue() (*cl.CommandQueue, error) {
-	if clCtx == nil {
-		log.Panicf("clCtx (context) cannot be nil! \n")
-		return nil, nil
-	}
-	if clDevice == nil {
-		log.Panicf("clDevice (device) cannot be nil! \n")
-		return nil, nil
+func CreateCommandQueue() (cl.CommandQueue, error) {
+	if initialized == false {
+		log.Panicf("oclRAND not initialized yet! \n")
+		return cl.EmptyCommandQueue, nil
 	}
 	return clCtx.CreateCommandQueue(clDevice, 0)
 }

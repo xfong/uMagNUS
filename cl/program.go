@@ -217,11 +217,11 @@ const (
 // ////////////// Abstract Types ////////////////
 type BuildError struct {
 	Message string
-	Device  *Device
+	Device  Device
 }
 
 func (e BuildError) Error() string {
-	if e.Device != nil {
+	if e.Device != EmptyDevice {
 		return fmt.Sprintf("cl: build error on %q: %s", e.Device.Name(), e.Message)
 	} else {
 		return fmt.Sprintf("cl: build error: %s", e.Message)
@@ -230,7 +230,7 @@ func (e BuildError) Error() string {
 
 type Program struct {
 	clProgram C.cl_program
-	devices   []*Device
+	devices   []Device
 	binaries  ProgramBinaries
 }
 
@@ -244,6 +244,12 @@ type ProgramBinaries struct {
 	binaryPtrs  []*byte
 	binarySizes []int
 }
+
+var (
+	EmptyProgramBinaries = ProgramBinaries{binaryArray: [][]byte{}, binaryPtrs: []*byte{}, binarySizes: []int{}}
+	EmptyProgram = Program{clProgram: nil, devices: []Device{EmptyDevice}, binaries: EmptyProgramBinaries}
+	EmptyProgramHeaders = ProgramHeaders{codes: EmptyProgram, names: ""}
+)
 
 // //////////////// Supporting Types ////////////////
 type CL_program_notify func(alt_program C.cl_program, user_data unsafe.Pointer)
@@ -287,7 +293,7 @@ func go_link_program_notify(alt_program C.cl_program, user_data unsafe.Pointer) 
 }
 
 // ////////////// Basic Functions ////////////////
-func releaseProgram(p *Program) error {
+func releaseProgram(p Program) error {
 	if p.clProgram != nil {
 		err := toError(C.clReleaseProgram(p.clProgram))
 		p.clProgram = nil
@@ -296,7 +302,7 @@ func releaseProgram(p *Program) error {
 	return ErrInvalidProgram
 }
 
-func retainProgram(p *Program) error {
+func retainProgram(p Program) error {
 	if p.clProgram != nil {
 		err := toError(C.clRetainProgram(p.clProgram))
 		return err
@@ -305,15 +311,19 @@ func retainProgram(p *Program) error {
 }
 
 // ////////////// Abstract Functions ////////////////
-func (p *Program) Release() error {
+func (p Program) Release() error {
 	return releaseProgram(p)
 }
 
-func (p *Program) Retain() error {
+func (p Program) Retain() error {
 	return retainProgram(p)
 }
 
-func (p *Program) BuildProgram(devices []*Device, options string) error {
+func (p Program) BuildProgram(devices []Device, options string) error {
+	if p.clProgram == nil {
+		return toError(C.CL_INVALID_PROGRAM)
+	}
+
 	var optBuffer bytes.Buffer
 	optBuffer.WriteString("-cl-std=CL1.2 -cl-kernel-arg-info ")
 	var cOptions *C.char
@@ -358,27 +368,36 @@ func (p *Program) BuildProgram(devices []*Device, options string) error {
 		}
 
 		return BuildError{
-			Device:  nil,
+			Device:  EmptyDevice,
 			Message: "build failed and produced no log entries",
 		}
 	}
 	return nil
 }
 
-func (p *Program) CreateKernel(name string) (*Kernel, error) {
+func (p Program) CreateKernel(name string) (Kernel, error) {
+	if p.clProgram == nil {
+		return EmptyKernel, ErrInvalidProgram
+	}
+
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
+
 	var err C.cl_int
 	clKernel := C.clCreateKernel(p.clProgram, cName, &err)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyKernel, toError(err)
 	}
-	kernel := &Kernel{clKernel: clKernel, name: name}
+	kernel := Kernel{clKernel: clKernel, name: name}
 	//runtime.SetFinalizer(kernel, releaseKernel) //needed (??)
 	return kernel, nil
 }
 
-func (ctx *Context) CreateProgramWithSource(sources []string) (*Program, error) {
+func (ctx Context) CreateProgramWithSource(sources []string) (Program, error) {
+	if ctx.clContext == nil {
+		return EmptyProgram, ErrInvalidContext
+	}
+
 	cSources := make([]*C.char, len(sources))
 	for i, s := range sources {
 		cs := C.CString(s)
@@ -388,17 +407,21 @@ func (ctx *Context) CreateProgramWithSource(sources []string) (*Program, error) 
 	var err C.cl_int
 	clProgram := C.clCreateProgramWithSource(ctx.clContext, C.cl_uint(len(sources)), &cSources[0], nil, &err)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyProgram, toError(err)
 	}
 	if clProgram == nil {
-		return nil, ErrUnknown
+		return EmptyProgram, ErrUnknown
 	}
-	program := &Program{clProgram: clProgram, devices: ctx.devices}
+	program := Program{clProgram: clProgram, devices: ctx.devices}
 	//runtime.SetFinalizer(program, releaseProgram) // needed (??)
 	return program, nil
 }
 
-func (ctx *Context) CreateProgramWithBuiltInKernels(devices []*Device, kernel_names []string) (*Program, error) {
+func (ctx Context) CreateProgramWithBuiltInKernels(devices []Device, kernel_names []string) (Program, error) {
+	if ctx.clContext == nil {
+		return EmptyProgram, ErrInvalidContext
+	}
+
 	cSources := make([]*C.char, 1)
 	merge_string := strings.Join(kernel_names, ";")
 	cs := C.CString(merge_string)
@@ -414,17 +437,21 @@ func (ctx *Context) CreateProgramWithBuiltInKernels(devices []*Device, kernel_na
 	var err C.cl_int
 	clProgram := C.clCreateProgramWithBuiltInKernels(ctx.clContext, numDevices, deviceListPtr, cSources[0], &err)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyProgram, toError(err)
 	}
 	if clProgram == nil {
-		return nil, ErrUnknown
+		return EmptyProgram, ErrUnknown
 	}
-	program := &Program{clProgram: clProgram, devices: ctx.devices}
+	program := Program{clProgram: clProgram, devices: ctx.devices}
 	//runtime.SetFinalizer(program, releaseProgram) // needed (??)
 	return program, nil
 }
 
-func (p *Program) CompileProgram(devices []*Device, options string, program_headers []*ProgramHeaders) error {
+func (p Program) CompileProgram(devices []Device, options string, program_headers []*ProgramHeaders) error {
+	if p.clProgram == nil {
+		return ErrInvalidProgram
+	}
+
 	var cOptions *C.char
 	if options != "" {
 		cOptions = C.CString(options)
@@ -433,7 +460,7 @@ func (p *Program) CompileProgram(devices []*Device, options string, program_head
 	var deviceList []C.cl_device_id
 	var deviceListPtr *C.cl_device_id
 	numDevices := C.cl_uint(len(devices))
-	if devices != nil && len(devices) > 0 {
+	if len(devices) > 0 {
 		deviceList = buildDeviceIdList(devices)
 		deviceListPtr = &deviceList[0]
 	}
@@ -482,14 +509,18 @@ func (p *Program) CompileProgram(devices []*Device, options string, program_head
 		}
 
 		return BuildError{
-			Device:  nil,
+			Device:  EmptyDevice,
 			Message: "build failed and produced no log entries",
 		}
 	}
 	return nil
 }
 
-func (p *Program) CompileProgramWithCallback(devices []*Device, options string, program_headers []*ProgramHeaders, user_data unsafe.Pointer) error {
+func (p Program) CompileProgramWithCallback(devices []Device, options string, program_headers []*ProgramHeaders, user_data unsafe.Pointer) error {
+	if p.clProgram == nil {
+		return ErrInvalidProgram
+	}
+
 	var cOptions *C.char
 	if options != "" {
 		cOptions = C.CString(options)
@@ -498,7 +529,7 @@ func (p *Program) CompileProgramWithCallback(devices []*Device, options string, 
 	var deviceList []C.cl_device_id
 	var deviceListPtr *C.cl_device_id
 	numDevices := C.cl_uint(len(devices))
-	if devices != nil && len(devices) > 0 {
+	if len(devices) > 0 {
 		deviceList = buildDeviceIdList(devices)
 		deviceListPtr = &deviceList[0]
 	}
@@ -542,14 +573,18 @@ func (p *Program) CompileProgramWithCallback(devices []*Device, options string, 
 		}
 
 		return BuildError{
-			Device:  nil,
+			Device:  EmptyDevice,
 			Message: "build failed and produced no log entries",
 		}
 	}
 	return nil
 }
 
-func (ctx *Context) LinkProgram(programs []*Program, devices []*Device, options string) (*Program, error) {
+func (ctx Context) LinkProgram(programs []Program, devices []Device, options string) (Program, error) {
+	if ctx.clContext == nil {
+		return EmptyProgram, ErrInvalidContext
+	}
+
 	var cOptions *C.char
 	if options != "" {
 		cOptions = C.CString(options)
@@ -558,7 +593,7 @@ func (ctx *Context) LinkProgram(programs []*Program, devices []*Device, options 
 	var deviceList []C.cl_device_id
 	var deviceListPtr *C.cl_device_id
 	numDevices := C.cl_uint(len(devices))
-	if devices != nil && len(devices) > 0 {
+	if len(devices) > 0 {
 		deviceList = buildDeviceIdList(devices)
 		deviceListPtr = &deviceList[0]
 	}
@@ -568,7 +603,7 @@ func (ctx *Context) LinkProgram(programs []*Program, devices []*Device, options 
 	}
 	var err C.cl_int
 	programExe := C.clLinkProgram(ctx.clContext, numDevices, deviceListPtr, cOptions, C.cl_uint(len(programs)), &programList[0], nil, nil, &err)
-	p := &Program{clProgram: programExe, devices: devices}
+	p := Program{clProgram: programExe, devices: devices}
 	if err != C.CL_SUCCESS {
 		buffer := make([]byte, 4096)
 		var bLen C.size_t
@@ -585,26 +620,30 @@ func (ctx *Context) LinkProgram(programs []*Program, devices []*Device, options 
 				}
 			}
 			if err != C.CL_SUCCESS {
-				return nil, toError(err)
+				return EmptyProgram, toError(err)
 			}
 
 			if bLen > 1 {
-				return nil, BuildError{
+				return EmptyProgram, BuildError{
 					Device:  dev,
 					Message: string(buffer[:bLen-1]),
 				}
 			}
 		}
 
-		return nil, BuildError{
-			Device:  nil,
+		return EmptyProgram, BuildError{
+			Device:  EmptyDevice,
 			Message: "build failed and produced no log entries",
 		}
 	}
 	return p, nil
 }
 
-func (ctx *Context) LinkProgramWithCallback(programs []*Program, devices []*Device, options string, user_data unsafe.Pointer) (*Program, error) {
+func (ctx Context) LinkProgramWithCallback(programs []Program, devices []Device, options string, user_data unsafe.Pointer) (Program, error) {
+	if ctx.clContext == nil {
+		return EmptyProgram, ErrInvalidContext
+	}
+
 	var cOptions *C.char
 	if options != "" {
 		cOptions = C.CString(options)
@@ -613,7 +652,7 @@ func (ctx *Context) LinkProgramWithCallback(programs []*Program, devices []*Devi
 	var deviceList []C.cl_device_id
 	var deviceListPtr *C.cl_device_id
 	numDevices := C.cl_uint(len(devices))
-	if devices != nil && len(devices) > 0 {
+	if len(devices) > 0 {
 		deviceList = buildDeviceIdList(devices)
 		deviceListPtr = &deviceList[0]
 	}
@@ -623,7 +662,7 @@ func (ctx *Context) LinkProgramWithCallback(programs []*Program, devices []*Devi
 	}
 	var err C.cl_int
 	programExe := C.CLLinkProgram(ctx.clContext, numDevices, deviceListPtr, cOptions, C.cl_uint(len(programs)), &programList[0], user_data, &err)
-	p := &Program{clProgram: programExe, devices: devices}
+	p := Program{clProgram: programExe, devices: devices}
 	if err != C.CL_SUCCESS {
 		buffer := make([]byte, 4096)
 		var bLen C.size_t
@@ -640,26 +679,30 @@ func (ctx *Context) LinkProgramWithCallback(programs []*Program, devices []*Devi
 				}
 			}
 			if err != C.CL_SUCCESS {
-				return nil, toError(err)
+				return EmptyProgram, toError(err)
 			}
 
 			if bLen > 1 {
-				return nil, BuildError{
+				return EmptyProgram, BuildError{
 					Device:  dev,
 					Message: string(buffer[:bLen-1]),
 				}
 			}
 		}
 
-		return nil, BuildError{
-			Device:  nil,
+		return EmptyProgram, BuildError{
+			Device:  EmptyDevice,
 			Message: "build failed and produced no log entries",
 		}
 	}
 	return p, nil
 }
 
-func (p *Program) GetBuildStatus(device *Device) (BuildStatus, error) {
+func (p Program) GetBuildStatus(device Device) (BuildStatus, error) {
+	if p.clProgram == nil {
+		return BuildStatus(-1), ErrInvalidProgram
+	}
+
 	var buildStatus C.cl_build_status
 	var tmpN C.size_t
 	err := C.CLGetProgramBuildInfoParamSize(p.clProgram, device.id, C.CL_PROGRAM_BUILD_STATUS, &tmpN)
@@ -673,7 +716,11 @@ func (p *Program) GetBuildStatus(device *Device) (BuildStatus, error) {
 	return BuildStatus(buildStatus), toError(err)
 }
 
-func (p *Program) GetBuildOptions(device *Device) (string, error) {
+func (p Program) GetBuildOptions(device Device) (string, error) {
+	if p.clProgram == nil {
+		return "", ErrInvalidProgram
+	}
+
 	var strN C.size_t
 	if err := C.CLGetProgramBuildInfoParamSize(p.clProgram, device.id, C.CL_PROGRAM_BUILD_OPTIONS, &strN); err != C.CL_SUCCESS {
 		panic("Should never fail getting parameter size for program info")
@@ -692,7 +739,11 @@ func (p *Program) GetBuildOptions(device *Device) (string, error) {
 	return retString, nil
 }
 
-func (p *Program) GetBuildLog(device *Device) (string, error) {
+func (p Program) GetBuildLog(device Device) (string, error) {
+	if p.clProgram == nil {
+		return "", ErrInvalidProgram
+	}
+
 	var strN C.size_t
 	if err := C.CLGetProgramBuildInfoParamSize(p.clProgram, device.id, C.CL_PROGRAM_BUILD_LOG, &strN); err != C.CL_SUCCESS {
 		panic("Should never fail getting parameter size for program info")
@@ -711,13 +762,21 @@ func (p *Program) GetBuildLog(device *Device) (string, error) {
 	return retString, nil
 }
 
-func (p *Program) GetProgramBinaryType(device *Device) (ProgramBinaryTypes, error) {
+func (p Program) GetProgramBinaryType(device Device) (ProgramBinaryTypes, error) {
+	if p.clProgram == nil {
+		return ProgramBinaryTypes(-1), ErrInvalidProgram
+	}
+
 	var binType C.cl_program_binary_type
 	err := C.CLGetProgramBuildInfoParamUnsafe(p.clProgram, device.id, C.CL_PROGRAM_BINARY_TYPE, C.size_t(unsafe.Sizeof(binType)), unsafe.Pointer(&binType))
 	return ProgramBinaryTypes(binType), toError(err)
 }
 
-func (p *Program) GetReferenceCount() (int, error) {
+func (p Program) GetReferenceCount() (int, error) {
+	if p.clProgram == nil {
+		return int(-1), ErrInvalidProgram
+	}
+
 	var val C.cl_uint
 	if err := C.CLGetProgramInfoParamUnsafe(p.clProgram, C.CL_PROGRAM_REFERENCE_COUNT, C.size_t(unsafe.Sizeof(val)), (unsafe.Pointer)(&val)); err != C.CL_SUCCESS {
 		panic("Should never fail")
@@ -727,17 +786,25 @@ func (p *Program) GetReferenceCount() (int, error) {
 	return int(val), nil
 }
 
-func (p *Program) GetContext() (*Context, error) {
+func (p Program) GetContext() (Context, error) {
+	if p.clProgram == nil {
+		return EmptyContext, ErrInvalidProgram
+	}
+
 	var val C.cl_context
 	if err := C.CLGetProgramInfoParamUnsafe(p.clProgram, C.CL_PROGRAM_CONTEXT, C.size_t(unsafe.Sizeof(val)), (unsafe.Pointer)(&val)); err != C.CL_SUCCESS {
 		panic("Should never fail")
-		return nil, toError(err)
+		return EmptyContext, toError(err)
 	}
 
-	return &Context{clContext: val, devices: nil}, nil
+	return Context{clContext: val, devices: nil}, nil
 }
 
-func (p *Program) GetDeviceCount() (int, error) {
+func (p Program) GetDeviceCount() (int, error) {
+	if p.clProgram == nil {
+		return int(-1), ErrInvalidProgram
+	}
+
 	var val C.cl_uint
 	if err := C.CLGetProgramInfoParamUnsafe(p.clProgram, C.CL_PROGRAM_NUM_DEVICES, C.size_t(unsafe.Sizeof(val)), (unsafe.Pointer)(&val)); err != C.CL_SUCCESS {
 		panic("Should never fail")
@@ -747,7 +814,11 @@ func (p *Program) GetDeviceCount() (int, error) {
 	return int(val), nil
 }
 
-func (p *Program) GetDevices() ([]*Device, error) {
+func (p Program) GetDevices() ([]Device, error) {
+	if p.clProgram == nil {
+		return nil, ErrInvalidProgram
+	}
+
 	cnts, _ := p.GetDeviceCount()
 	arr := (*C.cl_device_id)(C.calloc((C.size_t)(cnts), C.sizeof_cl_device_id))
 	defer C.free(unsafe.Pointer(arr))
@@ -756,14 +827,18 @@ func (p *Program) GetDevices() ([]*Device, error) {
 		return nil, toError(err)
 	}
 
-	returnDevices := make([]*Device, int(cnts))
+	returnDevices := make([]Device, int(cnts))
 	for i := 0; i < int(cnts); i++ {
-		returnDevices[i] = &Device{id: C.GetCLDeviceFromArray(arr, (C.ulong)(i))}
+		returnDevices[i] = Device{id: C.GetCLDeviceFromArray(arr, (C.ulong)(i))}
 	}
 	return returnDevices, nil
 }
 
-func (p *Program) GetSource() (string, error) {
+func (p Program) GetSource() (string, error) {
+	if p.clProgram == nil {
+		return "", ErrInvalidProgram
+	}
+
 	var strN C.size_t
 	defer C.free(unsafe.Pointer(&strN))
 	if err := C.CLGetProgramInfoParamSize(p.clProgram, C.CL_PROGRAM_SOURCE, &strN); err != C.CL_SUCCESS {
@@ -783,7 +858,11 @@ func (p *Program) GetSource() (string, error) {
 	return retString, nil
 }
 
-func (p *Program) GetBinarySizes() ([]int, error) {
+func (p Program) GetBinarySizes() ([]int, error) {
+	if p.clProgram == nil {
+		return nil, ErrInvalidProgram
+	}
+
 	var val C.size_t
 	if err := C.CLGetProgramInfoParamSize(p.clProgram, C.CL_PROGRAM_BINARY_SIZES, &val); err != C.CL_SUCCESS {
 		panic("Should never fail")
@@ -804,11 +883,15 @@ func (p *Program) GetBinarySizes() ([]int, error) {
 	return returnCount, nil
 }
 
-func (p *Program) GetBinaries() (*ProgramBinaries, error) {
+func (p Program) GetBinaries() (ProgramBinaries, error) {
+	if p.clProgram == nil {
+		return EmptyProgramBinaries, ErrInvalidProgram
+	}
+
 	binSizes, err := p.GetBinarySizes()
 	if err != nil {
 		panic("Unable to get program binary sizes")
-		return nil, toError(err)
+		return EmptyProgramBinaries, toError(err)
 	}
 	arr := make([][]byte, len(binSizes))
 	arrPtrs := make([]*byte, len(binSizes))
@@ -818,7 +901,7 @@ func (p *Program) GetBinaries() (*ProgramBinaries, error) {
 			arrPtrs[ii] = &arr[ii][0]
 			errRet := C.CLGetProgramBinary(p.clProgram, (C.uint)(ii), (C.size_t)(binSizes[ii]), (unsafe.Pointer)(arrPtrs[ii]))
 			if errRet != C.CL_SUCCESS {
-				return nil, toError(errRet)
+				return EmptyProgramBinaries, toError(errRet)
 			}
 		} else {
 			arr[ii] = make([]byte, 1)
@@ -826,10 +909,14 @@ func (p *Program) GetBinaries() (*ProgramBinaries, error) {
 		}
 	}
 
-	return &ProgramBinaries{binaryArray: arr, binaryPtrs: arrPtrs, binarySizes: binSizes}, nil
+	return ProgramBinaries{binaryArray: arr, binaryPtrs: arrPtrs, binarySizes: binSizes}, nil
 }
 
-func (p *Program) GetKernelCounts() (int, error) {
+func (p Program) GetKernelCounts() (int, error) {
+	if p.clProgram == nil {
+		return int(-1), ErrInvalidProgram
+	}
+
 	var val C.size_t
 	if err := C.CLGetProgramInfo(p.clProgram, C.CL_PROGRAM_NUM_KERNELS, C.size_t(unsafe.Sizeof(val)), (unsafe.Pointer)(&val), nil); err != C.CL_SUCCESS {
 		panic("Should never fail")
@@ -838,7 +925,11 @@ func (p *Program) GetKernelCounts() (int, error) {
 	return int(val), nil
 }
 
-func (p *Program) GetKernelNames() (string, error) {
+func (p Program) GetKernelNames() (string, error) {
+	if p.clProgram == nil {
+		return "", ErrInvalidProgram
+	}
+
 	var strN C.size_t
 	if err := C.CLGetProgramInfoParamSize(p.clProgram, C.CL_PROGRAM_KERNEL_NAMES, &strN); err != C.CL_SUCCESS {
 		panic("fail to get parameter size for program info")
@@ -857,7 +948,11 @@ func (p *Program) GetKernelNames() (string, error) {
 	return retString, nil
 }
 
-func (ctx *Context) CreateProgramWithBinary(deviceList []*Device, program_lengths []int, program_binaries [][]byte) (*Program, error) {
+func (ctx Context) CreateProgramWithBinary(deviceList []Device, program_lengths []int, program_binaries [][]byte) (Program, error) {
+	if ctx.clContext == nil {
+		return EmptyProgram, ErrInvalidProgram
+	}
+
 	device_list_in := make([]C.cl_device_id, len(deviceList))
 	binary_lengths := make([]C.size_t, len(program_lengths))
 
@@ -919,34 +1014,34 @@ func (ctx *Context) CreateProgramWithBinary(deviceList []*Device, program_length
 	}
 
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyProgram, toError(err)
 	}
 	if clProgram == nil {
-		return nil, ErrUnknown
+		return EmptyProgram, ErrUnknown
 	}
 
 	err = C.clBuildProgram(clProgram, 0, nil, nil, nil, nil)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyProgram, toError(err)
 	}
 
-	program := &Program{clProgram: clProgram, devices: ctx.devices}
+	program := Program{clProgram: clProgram, devices: ctx.devices}
 	//runtime.SetFinalizer(program, releaseProgram) // needed (??)
 	return program, nil
 }
 
-func (pf *Platform) UnloadCompiler() error {
+func (pf Platform) UnloadCompiler() error {
 	return toError(C.clUnloadPlatformCompiler(pf.id))
 }
 
-func (pb *ProgramBinaries) GetBinaryArray() [][]byte {
+func (pb ProgramBinaries) GetBinaryArray() [][]byte {
 	return pb.binaryArray
 }
 
-func (pb *ProgramBinaries) GetBinarySizes() []int {
+func (pb ProgramBinaries) GetBinarySizes() []int {
 	return pb.binarySizes
 }
 
-func (pb *ProgramBinaries) GetBinaryArrayPointers() []*byte {
+func (pb ProgramBinaries) GetBinaryArrayPointers() []*byte {
 	return pb.binaryPtrs
 }

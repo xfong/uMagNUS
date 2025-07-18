@@ -106,8 +106,8 @@ func (c *DemagConvolution) is2D() bool {
 // zero 1-component slice
 func zero1_async(dst *data.Slice) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	val := float32(0.0)
 	if dst == nil {
@@ -124,7 +124,8 @@ func zero1_async(dst *data.Slice) {
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in zero1_async: %+v \n", err)
 	}
-	if event, err = queue.EnqueueFillBuffer((*cl.MemObject)(dst.DevPtr(0)), unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
+	dst_ := (*cl.MemObject)(dst.DevPtr(0))
+	if event, err = queue.EnqueueFillBuffer(*dst_, unsafe.Pointer(&val), SIZEOF_FLOAT32, 0, dst.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
 		fmt.Printf("EnqueueFillBuffer failed: %+v \n", err)
 	}
 

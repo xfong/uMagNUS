@@ -141,6 +141,11 @@ type MemObject struct {
 	//rdMkr C.cl_event // latest event marker for commands reading memobject (consumer)
 }
 
+var (
+	EmptyMemObject = MemObject{clMem: nil, size: int(-1)}
+	EmptyMappedMemObject = MappedMemObject{ptr: nil, size: int(-1), rowPitch: int(-1), slicePitch: int(-1)}
+)
+
 // //////////////// Supporting Types ////////////////
 type CL_go_set_memdestructor_callback func(memObj C.cl_mem, user_data unsafe.Pointer)
 
@@ -155,7 +160,7 @@ func go_set_memdestructor_callback(memObj C.cl_mem, user_data unsafe.Pointer) {
 	go_set_memdestructor_callback_func[c_user_data[1]](memObj, c_user_data[0])
 }
 
-func releaseMemObject(b *MemObject) error {
+func releaseMemObject(b MemObject) error {
 	if b.clMem != nil {
 		err := toError(C.clReleaseMemObject(b.clMem))
 		b.clMem = nil
@@ -164,21 +169,21 @@ func releaseMemObject(b *MemObject) error {
 	return ErrInvalidMemObject
 }
 
-func retainMemObject(b *MemObject) error {
+func retainMemObject(b MemObject) error {
 	if b.clMem != nil {
 		return toError(C.clRetainMemObject(b.clMem))
 	}
 	return ErrInvalidMemObject
 }
 
-func newMemObject(mo C.cl_mem, size int) *MemObject {
-	return &MemObject{clMem: mo, size: size}
+func newMemObject(mo C.cl_mem, size int) MemObject {
+	return MemObject{clMem: mo, size: size}
 	//runtime.SetFinalizer(memObject, releaseMemObject) // needed (??)
 	//return memObject
 }
 
 // ////////////// Abstract Functions ////////////////
-func (mb *MappedMemObject) ByteSlice() []byte {
+func (mb MappedMemObject) ByteSlice() []byte {
 	var byteSlice []byte
 	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&byteSlice))
 	sliceHeader.Cap = mb.size
@@ -187,248 +192,258 @@ func (mb *MappedMemObject) ByteSlice() []byte {
 	return byteSlice
 }
 
-func (mb *MappedMemObject) Ptr() unsafe.Pointer {
+func (mb MappedMemObject) Ptr() unsafe.Pointer {
 	return mb.ptr
 }
 
-func (mb *MappedMemObject) Size() int {
+func (mb MappedMemObject) Size() int {
 	return mb.size
 }
 
-func (mb *MappedMemObject) RowPitch() int {
+func (mb MappedMemObject) RowPitch() int {
 	return mb.rowPitch
 }
 
-func (mb *MappedMemObject) SlicePitch() int {
+func (mb MappedMemObject) SlicePitch() int {
 	return mb.slicePitch
 }
 
-func (b *MemObject) Retain() error {
+func (b MemObject) Retain() error {
 	return retainMemObject(b)
 }
 
-func (b *MemObject) Release() error {
+func (b MemObject) Release() error {
 	return releaseMemObject(b)
 }
 
-func (b *MemObject) GetType() (string, error) {
-	if b.clMem != nil {
-		var tmp C.cl_mem_object_type
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_TYPE, &tmpN)
-		if toError(err) != nil {
-			return "Unknown", toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_TYPE, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return "Unknown", toError(err)
-		}
-		switch {
-		case MemObjectType(tmp) == MemObjectTypeBuffer:
-			return "Buffer", nil
-		default:
-			return "Unknown", nil
-		}
+func (b MemObject) GetType() (string, error) {
+	if b.clMem == nil {
+		return "Unknown", toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return "Unknown", toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_mem_object_type
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_TYPE, &tmpN)
+	if toError(err) != nil {
+		return "Unknown", toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_TYPE, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return "Unknown", toError(err)
+	}
+	switch {
+	case MemObjectType(tmp) == MemObjectTypeBuffer:
+		return "Buffer", nil
+	default:
+		return "Unknown", nil
+	}
 }
 
-func (b *MemObject) GetContext() (*Context, error) {
-	if b.clMem != nil {
-		var tmp C.cl_context
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_CONTEXT, &tmpN)
-		if toError(err) != nil {
-			return nil, nil
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_CONTEXT, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return nil, nil
-		}
-		return &Context{clContext: tmp, devices: nil}, toError(err)
+func (b MemObject) GetContext() (Context, error) {
+	if b.clMem == nil {
+		return EmptyContext, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return nil, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_context
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_CONTEXT, &tmpN)
+	if toError(err) != nil {
+		return EmptyContext, nil
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_CONTEXT, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return EmptyContext, nil
+	}
+	return Context{clContext: tmp, devices: nil}, toError(err)
 }
 
-func (b *MemObject) GetSize() (int, error) {
-	if b.clMem != nil {
-		var tmp C.size_t
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_SIZE, &tmpN)
-		if toError(err) != nil {
-			return int(-1), toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_SIZE, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return int(-1), toError(err)
-		}
-		return int(tmp), nil
+func (b MemObject) GetSize() (int, error) {
+	if b.clMem == nil {
+		return 0, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return 0, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.size_t
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_SIZE, &tmpN)
+	if toError(err) != nil {
+		return int(-1), toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_SIZE, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return int(-1), toError(err)
+	}
+	return int(tmp), nil
 }
 
-func (b *MemObject) GetRefenceCount() (int, error) {
-	if b.clMem != nil {
-		var tmp C.cl_uint
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_REFERENCE_COUNT, &tmpN)
-		if toError(err) != nil {
-			return 0, toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_REFERENCE_COUNT, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return 0, toError(err)
-		}
-		return int(tmp), nil
+func (b MemObject) GetRefenceCount() (int, error) {
+	if b.clMem == nil {
+		return 0, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return 0, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_uint
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+	
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_REFERENCE_COUNT, &tmpN)
+	if toError(err) != nil {
+		return 0, toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_REFERENCE_COUNT, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return 0, toError(err)
+	}
+	return int(tmp), nil
 }
 
-func (b *MemObject) GetMapCount() (int, error) {
-	if b.clMem != nil {
-		var tmp C.cl_uint
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_MAP_COUNT, &tmpN)
-		if toError(err) != nil {
-			return 0, toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_MAP_COUNT, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return 0, toError(err)
-		}
-		return int(tmp), nil
+func (b MemObject) GetMapCount() (int, error) {
+	if b.clMem == nil {
+		return 0, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return 0, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_uint
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+	
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_MAP_COUNT, &tmpN)
+	if toError(err) != nil {
+		return 0, toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_MAP_COUNT, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return 0, toError(err)
+	}
+	return int(tmp), nil
 }
 
-func (b *MemObject) GetHostPtr() (unsafe.Pointer, error) {
-	if b.clMem != nil {
-		var tmp unsafe.Pointer
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_HOST_PTR, &tmpN)
-		if toError(err) != nil {
-			return nil, toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_HOST_PTR, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return nil, toError(err)
-		}
-		return tmp, nil
+func (b MemObject) GetHostPtr() (unsafe.Pointer, error) {
+	if b.clMem == nil {
+		return nil, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return nil, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp unsafe.Pointer
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_HOST_PTR, &tmpN)
+	if toError(err) != nil {
+		return nil, toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_HOST_PTR, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return nil, toError(err)
+	}
+	return tmp, nil
 }
 
-func (b *MemObject) GetFlags() (MemFlag, error) {
-	if b.clMem != nil {
-		var tmp C.cl_mem_flags
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_FLAGS, &tmpN)
-		if toError(err) != nil {
-			return -1, toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_FLAGS, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return -1, toError(err)
-		}
-		switch {
-		case tmp == C.CL_MEM_READ_WRITE:
-			return MemReadWrite, nil
-		case tmp == C.CL_MEM_WRITE_ONLY:
-			return MemWriteOnly, nil
-		case tmp == C.CL_MEM_READ_ONLY:
-			return MemReadOnly, nil
-		case tmp == C.CL_MEM_USE_HOST_PTR:
-			return MemUseHostPtr, nil
-		case tmp == C.CL_MEM_ALLOC_HOST_PTR:
-			return MemAllocHostPtr, nil
-		case tmp == C.CL_MEM_COPY_HOST_PTR:
-			return MemCopyHostPtr, nil
-		default:
-			return -1, nil
-		}
+func (b MemObject) GetFlags() (MemFlag, error) {
+	if b.clMem == nil {
+		return -1, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return -1, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_mem_flags
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+	
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_FLAGS, &tmpN)
+	if toError(err) != nil {
+		return -1, toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_FLAGS, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return -1, toError(err)
+	}
+	switch {
+	case tmp == C.CL_MEM_READ_WRITE:
+		return MemReadWrite, nil
+	case tmp == C.CL_MEM_WRITE_ONLY:
+		return MemWriteOnly, nil
+	case tmp == C.CL_MEM_READ_ONLY:
+		return MemReadOnly, nil
+	case tmp == C.CL_MEM_USE_HOST_PTR:
+		return MemUseHostPtr, nil
+	case tmp == C.CL_MEM_ALLOC_HOST_PTR:
+		return MemAllocHostPtr, nil
+	case tmp == C.CL_MEM_COPY_HOST_PTR:
+		return MemCopyHostPtr, nil
+	default:
+		return -1, nil
+	}
 }
 
-func (b *MemObject) IsWriteable() (bool, error) {
-	if b.clMem != nil {
-		var tmp C.cl_mem_flags
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_FLAGS, &tmpN)
-		if toError(err) != nil {
-			return false, toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_FLAGS, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return false, toError(err)
-		}
-		switch {
-		case tmp == C.CL_MEM_READ_WRITE:
-			return true, nil
-		case tmp == C.CL_MEM_WRITE_ONLY:
-			return true, nil
-		default:
-			return false, nil
-		}
+func (b MemObject) IsWriteable() (bool, error) {
+	if b.clMem == nil {
+		return false, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return false, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_mem_flags
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+	
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_FLAGS, &tmpN)
+	if toError(err) != nil {
+		return false, toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_FLAGS, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return false, toError(err)
+	}
+	switch {
+	case tmp == C.CL_MEM_READ_WRITE:
+		return true, nil
+	case tmp == C.CL_MEM_WRITE_ONLY:
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 
-func (b *MemObject) GetOffset() (int, error) {
-	if b.clMem != nil {
-		var tmp C.size_t
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_OFFSET, &tmpN)
-		if toError(err) != nil {
-			return int(-1), toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_OFFSET, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return int(-1), toError(err)
-		}
-		return int(tmp), nil
+func (b MemObject) GetOffset() (int, error) {
+	if b.clMem == nil {
+		return 0, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return 0, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.size_t
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+	
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_OFFSET, &tmpN)
+	if toError(err) != nil {
+		return int(-1), toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_OFFSET, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return int(-1), toError(err)
+	}
+	return int(tmp), nil
 }
 
-func (b *MemObject) GetAssociatedMemObject() (*MemObject, error) {
-	if b.clMem != nil {
-		var tmp C.cl_mem
-		var tmpN C.size_t
-		defer C.free(unsafe.Pointer(&tmpN))
-		err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_ASSOCIATED_MEMOBJECT, &tmpN)
-		if toError(err) != nil {
-			return nil, toError(err)
-		}
-		err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_ASSOCIATED_MEMOBJECT, tmpN, unsafe.Pointer(&tmp))
-		if toError(err) != nil {
-			return nil, toError(err)
-		}
-		tmpObj := newMemObject(tmp, 0)
-		val, errTmp := tmpObj.GetSize()
-		if errTmp != nil {
-			fmt.Printf("Failed to get size of associated memobject: %+v \n", err)
-			return newMemObject(tmp, 0), nil
-		}
-		return newMemObject(tmp, val), nil
+func (b MemObject) GetAssociatedMemObject() (MemObject, error) {
+	if b.clMem == nil {
+		return EmptyMemObject, toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return nil, toError(C.CL_INVALID_MEM_OBJECT)
+	var tmp C.cl_mem
+	var tmpN C.size_t
+	defer C.free(unsafe.Pointer(&tmpN))
+	
+	err := C.CLGetMemObjectInfoParamSize(b.clMem, C.CL_MEM_ASSOCIATED_MEMOBJECT, &tmpN)
+	if toError(err) != nil {
+		return EmptyMemObject, toError(err)
+	}
+	err = C.CLGetMemObjectInfoParamUnsafe(b.clMem, C.CL_MEM_ASSOCIATED_MEMOBJECT, tmpN, unsafe.Pointer(&tmp))
+	if toError(err) != nil {
+		return EmptyMemObject, toError(err)
+	}
+	tmpObj := newMemObject(tmp, 0)
+	val, errTmp := tmpObj.GetSize()
+	if errTmp != nil {
+		fmt.Printf("Failed to get size of associated memobject: %+v \n", err)
+		return newMemObject(tmp, 0), nil
+	}
+	return newMemObject(tmp, val), nil
 }
 
 func (b *MemObject) SetMemObjectDestructorCallback(user_data unsafe.Pointer) error {
-	if b.clMem != nil {
-		return toError(C.CLSetMemObjectDestructorCallback(b.clMem, user_data))
+	if b.clMem == nil {
+		return toError(C.CL_INVALID_MEM_OBJECT)
 	}
-	return toError(C.CL_INVALID_MEM_OBJECT)
+	return toError(C.CLSetMemObjectDestructorCallback(b.clMem, user_data))
 }
 
 /*
@@ -458,48 +473,63 @@ Based on these observations, we need to track only:
 
 /*
 // return event corresponding to latest command writing into memobject
-func (b *MemObject) GetWriteEvent() *Event {
+func (b MemObject) GetWriteEvent() Event {
+	if b.clMem == nil {
+		return nil
+	}
 	return newEvent(b.wrEv)
 }
 
 // set event corresponding to latest command writing into memobject
-func (b *MemObject) SetWriteEvent(ev *Event) {
+func (b MemObject) SetWriteEvent(ev Event) {
 	if ev != nil {
 		b.wrEv = ev.clEvent
 	}
 }
 
 // return marker tracking reads into memobject
-func (b *MemObject) GetReadMarker() *Event {
+func (b MemObject) GetReadMarker() Event {
+	if b.clMem == nil {
+		return nil
+	}
 	return newEvent(b.rdMkr)
 }
 
 // set marker tracking reads into memobject
-func (b *MemObject) SetReadMarker(ev *Event) {
+func (b MemObject) SetReadMarker(ev Event) {
 	if ev != nil {
 		b.rdMkr = ev.clEvent
 	}
 }
 
 // return events for write dependence
-func (b *MemObject) GetWriteDependencies() []*Event {
-	tmpEv := []*cl.Event{}
+func (b MemObject) GetWriteDependencies() []Event {
+	if b.clMem == nil {
+		return nil
+	}
+	tmpEv := []Event{}
     tmpEv = append(tmpEv, b.GetReadMarker())
 	tmpEv = append(tmpEv, b.GetWriteEvent())
 	return tmpEv
 }
 
 // return events for read dependence
-func (b *MemObject) GetReadDependencies() []*Event {
-	tmpEv := []*cl.Event{}
+func (b MemObject) GetReadDependencies() []Event {
+	if b.clMem == nil {
+		return nil
+	}
+	tmpEv := []Event{}
 	tmpEv = append(tmpEv, b.GetWriteEvent())
 	return tmpEv
 }
 
 // function to update write dependence
-func (b *MemObject) SetWriteDependence(ev *Event) error {
-	var err error
+func (b MemObject) SetWriteDependence(ev Event) error {
+	if b.clMem == nil {
+		return toError(C.CL_INVALID_MEM_OBJECT)
+	}
 
+	var err error
 	if ev == nil {
 		return nil
 	}
@@ -513,16 +543,20 @@ func (b *MemObject) SetWriteDependence(ev *Event) error {
 }
 
 // function to update read dependence
-func (b *MemObject) SetReadDependence(q *CommandQueue, ev *Event) error {
+func (b MemObject) SetReadDependence(q CommandQueue, ev Event) error {
+	if b.clMem == nil {
+		return toError(C.CL_INVALID_MEM_OBJECT)
+	}
+
 	var error
-	var tmpEv1 *Event
-	var tmpEv2 *Event
+	var tmpEv1 Event
+	var tmpEv2 Event
 
 	if q == nil || ev == nil {
 		return nil
 	}
 	tmpEv1 = b.GetReadMarker()
-	if tmpEv2, err = q.EnqueueMarkerWithWaitList([]*Event{ev, tmpEv1}); err != nil {
+	if tmpEv2, err = q.EnqueueMarkerWithWaitList([]Event{ev, tmpEv1}); err != nil {
 		fmt.Printf("failed to enqueue marker in setreaddependence: %+v \n", err)
 		return toError(err)
 	}
@@ -540,41 +574,69 @@ func (b *MemObject) SetReadDependence(q *CommandQueue, ev *Event) error {
 */
 
 // Enqueues a command to map a region of the buffer object given by buffer into the host address space and returns a pointer to this mapped region.
-func (q *CommandQueue) EnqueueMapBuffer(buffer *MemObject, blocking bool, flags MapFlag, offset, size int, eventWaitList []*Event) (*MappedMemObject, *Event, error) {
+func (q CommandQueue) EnqueueMapBuffer(buffer MemObject, blocking bool, flags MapFlag, offset, size int, eventWaitList []Event) (MappedMemObject, Event, error) {
+	if q.clQueue == nil {
+		return EmptyMappedMemObject, EmptyEvent, toError(C.CL_INVALID_COMMAND_QUEUE)
+	}
+
 	var event C.cl_event
 	var err C.cl_int
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	ptr := C.clEnqueueMapBuffer(q.clQueue, buffer.clMem, clBool(blocking), flags.toCl(), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), eventWaitListPtr, &event, &err)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	ptr := C.clEnqueueMapBuffer(q.clQueue, buffer.clMem, clBool(blocking), flags.toCl(), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), WL, &event, &err)
 	if err != C.CL_SUCCESS {
-		return nil, nil, toError(err)
+		return EmptyMappedMemObject, EmptyEvent, toError(err)
 	}
 	ev := newEvent(event)
 	if ptr == nil {
-		return nil, ev, ErrUnknown
+		return EmptyMappedMemObject, ev, ErrUnknown
 	}
-	return &MappedMemObject{ptr: ptr, size: size}, ev, nil
+	return MappedMemObject{ptr: ptr, size: size}, ev, nil
 }
 
 // Enqueues a command to unmap a previously mapped region of a memory object.
-func (q *CommandQueue) EnqueueUnmapMemObject(buffer *MemObject, mappedObj *MappedMemObject, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueUnmapMemObject(buffer MemObject, mappedObj *MappedMemObject, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, toError(C.CL_INVALID_COMMAND_QUEUE)
+	}
+
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	if err := C.clEnqueueUnmapMemObject(q.clQueue, buffer.clMem, mappedObj.ptr, C.cl_uint(WaitListLen), eventWaitListPtr, &event); err != C.CL_SUCCESS {
-		return nil, toError(err)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	if err := C.clEnqueueUnmapMemObject(q.clQueue, buffer.clMem, mappedObj.ptr, C.cl_uint(WaitListLen), WL, &event); err != C.CL_SUCCESS {
+		return EmptyEvent, toError(err)
 	}
 	return newEvent(event), nil
 }
 
 // Enqueues a command to copy a buffer object to another buffer object.
-func (q *CommandQueue) EnqueueCopyBuffer(srcBuffer, dstBuffer *MemObject, srcOffset, dstOffset, byteCount int, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueCopyBuffer(srcBuffer, dstBuffer MemObject, srcOffset, dstOffset, byteCount int, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueCopyBuffer(q.clQueue, srcBuffer.clMem, dstBuffer.clMem, C.size_t(srcOffset), C.size_t(dstOffset), C.size_t(byteCount), C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueCopyBuffer(q.clQueue, srcBuffer.clMem, dstBuffer.clMem, C.size_t(srcOffset), C.size_t(dstOffset), C.size_t(byteCount), C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueue command to write to a region in buffer object from host memory.
-func (q *CommandQueue) EnqueueCopyBufferRect(dst, src *MemObject, dst_origin, src_origin, region *Dim3, dst_row_pitch, dst_slice_pitch, src_row_pitch, src_slice_pitch int, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueCopyBufferRect(dst, src MemObject, dst_origin, src_origin, region *Dim3, dst_row_pitch, dst_slice_pitch, src_row_pitch, src_slice_pitch int, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
 	dst_offset := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&dst_offset))
@@ -585,35 +647,51 @@ func (q *CommandQueue) EnqueueCopyBufferRect(dst, src *MemObject, dst_origin, sr
 	mem_size := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&mem_size))
 	mem_size[0], mem_size[1], mem_size[2] = (C.size_t)(region.X), (C.size_t)(region.Y), (C.size_t)(region.Z)
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
 	err := toError(C.clEnqueueCopyBufferRect(q.clQueue, src.clMem, dst.clMem, &src_offset[0], &dst_offset[0], &mem_size[0],
 		(C.size_t)(src_row_pitch), (C.size_t)(src_slice_pitch), (C.size_t)(dst_row_pitch), (C.size_t)(dst_slice_pitch),
-		C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+		C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueue commands to write to a buffer object from host memory.
-func (q *CommandQueue) EnqueueWriteBuffer(buffer *MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueWriteBuffer(buffer MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueWriteBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueWriteBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
-func (q *CommandQueue) EnqueueWriteBufferByte(buffer *MemObject, blocking bool, offset int, data []byte, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueWriteBufferByte(buffer MemObject, blocking bool, offset int, data []byte, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueWriteBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
-func (q *CommandQueue) EnqueueWriteBufferFloat32(buffer *MemObject, blocking bool, offset int, data []float32, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueWriteBufferFloat32(buffer MemObject, blocking bool, offset int, data []float32, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueWriteBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
 // Enqueue commands to write to a region in buffer object from host memory.
-func (q *CommandQueue) EnqueueWriteBufferRect(buffer *MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueWriteBufferRect(buffer MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
 	host_offset := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&host_offset))
@@ -624,35 +702,51 @@ func (q *CommandQueue) EnqueueWriteBufferRect(buffer *MemObject, blocking bool, 
 	mem_size := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&mem_size))
 	mem_size[0], mem_size[1], mem_size[2] = (C.size_t)(region.X), (C.size_t)(region.Y), (C.size_t)(region.Z)
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
 	err := toError(C.clEnqueueWriteBufferRect(q.clQueue, buffer.clMem, clBool(blocking), &buffer_offset[0], &host_offset[0], &mem_size[0],
 		(C.size_t)(buffer_row_pitch), (C.size_t)(buffer_slice_pitch), (C.size_t)(host_row_pitch), (C.size_t)(host_slice_pitch),
-		dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+		dataPtr, C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueue commands to read from a buffer object to host memory.
-func (q *CommandQueue) EnqueueReadBuffer(buffer *MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueReadBuffer(buffer MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueReadBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueReadBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
-func (q *CommandQueue) EnqueueReadBufferByte(buffer *MemObject, blocking bool, offset int, data []byte, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueReadBufferByte(buffer MemObject, blocking bool, offset int, data []byte, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueReadBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
-func (q *CommandQueue) EnqueueReadBufferFloat32(buffer *MemObject, blocking bool, offset int, data []float32, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueReadBufferFloat32(buffer MemObject, blocking bool, offset int, data []float32, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueReadBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
 // Enqueue commands to read from a region in buffer object to host memory.
-func (q *CommandQueue) EnqueueReadBufferRect(buffer *MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueReadBufferRect(buffer MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
 	host_offset := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&host_offset))
@@ -663,102 +757,136 @@ func (q *CommandQueue) EnqueueReadBufferRect(buffer *MemObject, blocking bool, b
 	mem_size := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&mem_size))
 	mem_size[0], mem_size[1], mem_size[2] = (C.size_t)(region.X), (C.size_t)(region.Y), (C.size_t)(region.Z)
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
 	err := toError(C.clEnqueueReadBufferRect(q.clQueue, buffer.clMem, clBool(blocking), &buffer_offset[0], &host_offset[0], &mem_size[0],
 		(C.size_t)(buffer_row_pitch), (C.size_t)(buffer_slice_pitch), (C.size_t)(host_row_pitch), (C.size_t)(host_slice_pitch),
-		dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+		dataPtr, C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
-func (ctx *Context) CreateBufferUnsafe(flags MemFlag, size int, dataPtr unsafe.Pointer) (*MemObject, error) {
+func (ctx Context) CreateBufferUnsafe(flags MemFlag, size int, dataPtr unsafe.Pointer) (MemObject, error) {
+	if ctx.clContext == nil {
+		return EmptyMemObject, ErrInvalidContext
+	}
+
 	var err C.cl_int
 	clBuffer := C.clCreateBuffer(ctx.clContext, C.cl_mem_flags(flags), C.size_t(size), dataPtr, &err)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyMemObject, toError(err)
 	}
 	if clBuffer == nil {
-		return nil, ErrUnknown
+		return EmptyMemObject, ErrUnknown
 	}
 	return newMemObject(clBuffer, size), nil
 }
 
-func (ctx *Context) CreateEmptyBuffer(flags MemFlag, size int) (*MemObject, error) {
+func (ctx Context) CreateEmptyBuffer(flags MemFlag, size int) (MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, size, nil)
 }
 
-func (ctx *Context) CreateEmptyBufferFloat32(flags MemFlag, size int) (*MemObject, error) {
+func (ctx Context) CreateEmptyBufferFloat32(flags MemFlag, size int) (MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, 4*size, nil)
 }
 
-func (ctx *Context) CreateEmptyBufferFloat64(flags MemFlag, size int) (*MemObject, error) {
+func (ctx Context) CreateEmptyBufferFloat64(flags MemFlag, size int) (MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, 8*size, nil)
 }
 
-func (ctx *Context) CreateBuffer(flags MemFlag, data []byte) (*MemObject, error) {
+func (ctx Context) CreateBuffer(flags MemFlag, data []byte) (MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, len(data), unsafe.Pointer(&data[0]))
 }
 
 // float32
-func (ctx *Context) CreateBufferFloat32(flags MemFlag, data []float32) (*MemObject, error) {
+func (ctx Context) CreateBufferFloat32(flags MemFlag, data []float32) (MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, 4*len(data), unsafe.Pointer(&data[0]))
 }
 
 // float64
-func (ctx *Context) CreateBufferFloat64(flags MemFlag, data []float64) (*MemObject, error) {
+func (ctx Context) CreateBufferFloat64(flags MemFlag, data []float64) (MemObject, error) {
 	return ctx.CreateBufferUnsafe(flags, 8*len(data), unsafe.Pointer(&data[0]))
 }
 
-func (mobj *MemObject) CreateSubBuffer(flags MemFlag, origin, bSize int) (*MemObject, error) {
+func (mobj MemObject) CreateSubBuffer(flags MemFlag, origin, bSize int) (MemObject, error) {
 	var err C.cl_int
 	clBuffer := C.CLcreateSubBuffer(mobj.clMem, C.cl_mem_flags(flags), (C.size_t)(origin), (C.size_t)(bSize), &err)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyMemObject, toError(err)
 	}
 	if clBuffer == nil {
-		return nil, ErrUnknown
+		return EmptyMemObject, ErrUnknown
 	}
 	return newMemObject(clBuffer, bSize), nil
 }
 
-func (mobj *MemObject) CreateSubBufferFloat32(flags MemFlag, origin, bSize int) (*MemObject, error) {
+func (mobj MemObject) CreateSubBufferFloat32(flags MemFlag, origin, bSize int) (MemObject, error) {
 	return mobj.CreateSubBuffer(flags, 4*origin, 4*bSize)
 }
 
-func (mobj *MemObject) CreateSubBufferFloat64(flags MemFlag, origin, bSize int) (*MemObject, error) {
+func (mobj MemObject) CreateSubBufferFloat64(flags MemFlag, origin, bSize int) (MemObject, error) {
 	return mobj.CreateSubBuffer(flags, 8*origin, 8*bSize)
 }
 
-func (q *CommandQueue) EnqueueFillBuffer(buffer *MemObject, pattern unsafe.Pointer, patternSize, offset, size int, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueFillBuffer(buffer MemObject, pattern unsafe.Pointer, patternSize, offset, size int, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueFillBuffer(q.clQueue, buffer.clMem, pattern, C.size_t(patternSize), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueFillBuffer(q.clQueue, buffer.clMem, pattern, C.size_t(patternSize), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueue a command to migrate memory objects into host
-func (q *CommandQueue) EnqueueMigrateMemObjectsToHost(memObjs []*MemObject, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueMigrateMemObjectsToHost(memObjs []MemObject, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	ObjCount := len(memObjs)
 	mem_obj_list := make([]C.cl_mem, ObjCount)
 	defer C.free(unsafe.Pointer(&mem_obj_list))
+
 	for idx, obj := range memObjs {
 		mem_obj_list[idx] = obj.clMem
 	}
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_HOST, C.cl_uint(WaitListLen), eventWaitListPtr, &event)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_HOST, C.cl_uint(WaitListLen), WL, &event)
 	return newEvent(event), toError(err)
 }
 
 // Enqueue a command to migrate memory objects into a command queue without their content
-func (q *CommandQueue) EnqueueMigrateMemObjectsIntoQueue(memObjs []*MemObject, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueMigrateMemObjectsIntoQueue(memObjs []MemObject, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
+
 	ObjCount := len(memObjs)
 	mem_obj_list := make([]C.cl_mem, ObjCount)
 	defer C.free(unsafe.Pointer(&mem_obj_list))
+
 	for idx, obj := range memObjs {
 		mem_obj_list[idx] = obj.clMem
 	}
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED, C.cl_uint(WaitListLen), eventWaitListPtr, &event)
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED, C.cl_uint(WaitListLen), WL, &event)
 	return newEvent(event), toError(err)
 }

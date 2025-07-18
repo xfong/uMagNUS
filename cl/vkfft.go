@@ -33,6 +33,7 @@ var (
 	ErrVkFFTFailInsufficientTempBuffer                      = errors.New("vkFFT: Insufficient temp buffer")
 	ErrVkFFTFailPlanNotInitialized                          = errors.New("vkFFT: Plan not initialized")
 	ErrVkFFTFailNullTemp                                    = errors.New("vkFFT: Null temp")
+	ErrVkFFTFailInvalidPlan                                 = errors.New("vkFFT: Invalid vkfft plan")
 	ErrVkFFTFailInvalidPhysicalDevice                       = errors.New("vkFFT: Invalid physical device")
 	ErrVkFFTFailInvalidDevice                               = errors.New("vkFFT: Invalid device")
 	ErrVkFFTFailInvalidQueue                                = errors.New("vkFFT: Invalid queue")
@@ -225,24 +226,24 @@ type VkfftPlan struct {
 	vkfftPlanStruct C.interfaceFFTPlan
 }
 
-func (vPlan *VkfftPlan) GetPlanPointer() *C.interfaceFFTPlan {
+func (vPlan VkfftPlan) GetPlanPointer() *C.interfaceFFTPlan {
 	return &vPlan.vkfftPlanStruct
 }
 
-func NewVkFFTPlan(ctx *Context, queue *CommandQueue) *VkfftPlan {
+func NewVkFFTPlan(ctx Context, queue CommandQueue) VkfftPlan {
 	var outPlan *C.interfaceFFTPlan
 	outPlan = C.vkfftCreateR2CFFTPlan(ctx.clContext, queue.clQueue)
-	return &VkfftPlan{*outPlan}
+	return VkfftPlan{*outPlan}
 }
 
-func NewVkFFTPlanDouble(ctx *Context, queue *CommandQueue) *VkfftPlan {
+func NewVkFFTPlanDouble(ctx Context, queue CommandQueue) VkfftPlan {
 	var outPlan *C.interfaceFFTPlan
 	outPlan = C.vkfftCreateR2CFFTPlan(ctx.clContext, queue.clQueue)
 	C.vkfftSetFFTPlanDataType(outPlan, 1)
-	return &VkfftPlan{*outPlan}
+	return VkfftPlan{*outPlan}
 }
 
-func (p *VkfftPlan) VkFFTSetFFTPlanSize(lengths []int) {
+func (p VkfftPlan) VkFFTSetFFTPlanSize(lengths []int) {
 	var cLengths [3]C.size_t
 	dim := len(lengths)
 	if dim > 3 {
@@ -260,45 +261,45 @@ func (p *VkfftPlan) VkFFTSetFFTPlanSize(lengths []int) {
 	C.vkfftSetFFTPlanSize(p.GetPlanPointer(), &cLengths[0])
 }
 
-func (p *VkfftPlan) VkFFTEnqueueTransformUnsafe(dir VkfftDirection, input []*MemObject, output []*MemObject) error {
+func (p VkfftPlan) VkFFTEnqueueTransformUnsafe(dir VkfftDirection, input []MemObject, output []MemObject) error {
 	return toError(C.vkfftEnqueueTransform(p.GetPlanPointer(), (C.vkfft_transform_dir)(dir), &(input[0].clMem), &(output[0].clMem)))
 }
 
-func (p *VkfftPlan) EnqueueForwardTransform(input []*MemObject, output []*MemObject) error {
+func (p VkfftPlan) EnqueueForwardTransform(input []MemObject, output []MemObject) error {
 	return p.VkFFTEnqueueTransformUnsafe(VkfftForwardDirection, input, output)
 }
 
-func (p *VkfftPlan) EnqueueBackwardTransform(input []*MemObject, output []*MemObject) error {
+func (p VkfftPlan) EnqueueBackwardTransform(input []MemObject, output []MemObject) error {
 	return p.VkFFTEnqueueTransformUnsafe(VkfftBackwardDirection, input, output)
 }
 
-func (plan *VkfftPlan) Destroy() {
-	C.vkfftDestroyFFTPlan(plan.GetPlanPointer())
+func (p VkfftPlan) Destroy() {
+	C.vkfftDestroyFFTPlan(p.GetPlanPointer())
 }
 
-func (plan *VkfftPlan) GetQueueEvent() *Event {
-	ev := new(Event)
-	ev.clEvent = C.vkfftGetPlanEvent(plan.GetPlanPointer())
+func (p VkfftPlan) GetQueueEvent() Event {
+	var ev Event
+	ev.clEvent = C.vkfftGetPlanEvent(p.GetPlanPointer())
 	return ev
 }
 
-func (plan *VkfftPlan) SetQueueEvent(e *Event) {
-	C.vkfftSetPlanEvent(plan.GetPlanPointer(), e.clEvent)
+func (p VkfftPlan) SetQueueEvent(e Event) {
+	C.vkfftSetPlanEvent(p.GetPlanPointer(), e.clEvent)
 }
 
-func (plan *VkfftPlan) GetCommandQueue() *CommandQueue {
-	queue := new(CommandQueue)
-	dev := new(Device)
-	queue.clQueue = C.vkfftPlanGetCommandQueue(plan.GetPlanPointer())
-	dev.id = C.vkfftPlanGetDevice(plan.GetPlanPointer())
+func (p VkfftPlan) GetCommandQueue() CommandQueue {
+	var queue CommandQueue
+	var dev Device
+	queue.clQueue = C.vkfftPlanGetCommandQueue(p.GetPlanPointer())
+	dev.id = C.vkfftPlanGetDevice(p.GetPlanPointer())
 	queue.device = dev
 	return queue
 }
 
-func (plan *VkfftPlan) QueueFinish() error {
-	return toError(C.vkfftPlanQueueFinish(plan.GetPlanPointer()))
+func (p VkfftPlan) QueueFinish() error {
+	return toError(C.vkfftPlanQueueFinish(p.GetPlanPointer()))
 }
 
-func (plan *VkfftPlan) QueueFlush() error {
-	return toError(C.vkfftPlanQueueFlush(plan.GetPlanPointer()))
+func (p VkfftPlan) QueueFlush() error {
+	return toError(C.vkfftPlanQueueFlush(p.GetPlanPointer()))
 }

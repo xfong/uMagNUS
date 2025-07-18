@@ -69,10 +69,14 @@ const (
 	ContextInteropUserSync ContextPropertiesId = C.CL_CONTEXT_INTEROP_USER_SYNC
 )
 
+var (
+	EmptyContext = Context{clContext: nil, devices: []Device{EmptyDevice}}
+)
+
 // //////////////// Abstract Types ////////////////
 type Context struct {
 	clContext C.cl_context
-	devices   []*Device
+	devices   []Device
 }
 
 // //////////////// Golang Types ////////////////
@@ -96,25 +100,25 @@ func go_ctx_notify(errinfo *C.char, private_info unsafe.Pointer, cb C.int, user_
 	ctx_notify[c_user_data[1]](C.GoString(errinfo), private_info, int(cb), c_user_data[0])
 }
 
-func releaseContext(c *Context) {
+func releaseContext(c Context) {
 	if c.clContext != nil {
 		C.clReleaseContext(c.clContext)
 		c.clContext = nil
 	}
 }
 
-func retainContext(c *Context) {
+func retainContext(c Context) {
 	if c.clContext != nil {
 		C.clRetainContext(c.clContext)
 	}
 }
 
-func CreateContext(devices []*Device) (*Context, error) {
+func CreateContext(devices []Device) (Context, error) {
 	clContext, err := CreateContextUnsafe(nil, devices, nil, nil)
 	return clContext, err
 }
 
-func CreateContextUnsafe(properties *C.cl_context_properties, devices []*Device, pfn_notify CL_ctx_notify, user_data unsafe.Pointer) (*Context, error) {
+func CreateContextUnsafe(properties *C.cl_context_properties, devices []Device, pfn_notify CL_ctx_notify, user_data unsafe.Pointer) (Context, error) {
 	deviceIds := buildDeviceIdList(devices)
 	var err C.cl_int
 	var clContext C.cl_context
@@ -136,12 +140,12 @@ func CreateContextUnsafe(properties *C.cl_context_properties, devices []*Device,
 	if clContext == nil {
 		return nil, ErrUnknown
 	}
-	context := &Context{clContext: clContext, devices: devices}
-	runtime.SetFinalizer(context, releaseContext)
+	context := Context{clContext: clContext, devices: devices}
+	//runtime.SetFinalizer(context, releaseContext) needed (??)
 	return context, nil
 }
 
-func CreateContextFromTypeUnsafe(properties *C.cl_context_properties, device_type C.cl_device_type, pfn_notify CL_ctx_notify, user_data unsafe.Pointer) (*Context, error) {
+func CreateContextFromTypeUnsafe(properties *C.cl_context_properties, device_type C.cl_device_type, pfn_notify CL_ctx_notify, user_data unsafe.Pointer) (Context, error) {
 	var err C.cl_int
 	var clContext C.cl_context
 	if pfn_notify != nil {
@@ -162,151 +166,157 @@ func CreateContextFromTypeUnsafe(properties *C.cl_context_properties, device_typ
 	if clContext == nil {
 		return nil, ErrUnknown
 	}
-	contextTmp := &Context{clContext: clContext, devices: nil}
+	contextTmp := Context{clContext: clContext, devices: nil}
 	cDevices, errD := contextTmp.GetDevices()
 	if errD != nil {
-		runtime.SetFinalizer(contextTmp, releaseContext)
+		//runtime.SetFinalizer(contextTmp, releaseContext) // needed (??)
 		return contextTmp, toError(err)
 	}
-	context := &Context{clContext: clContext, devices: cDevices}
-	runtime.SetFinalizer(context, releaseContext)
+	context := Context{clContext: clContext, devices: cDevices}
+	//runtime.SetFinalizer(context, releaseContext) // needed (??)
 	return context, nil
 }
 
 // //////////////// Abstract Functions ////////////////
-func (ctx *Context) Release() {
+func (ctx Context) Release() {
 	releaseContext(ctx)
 }
 
-func (ctx *Context) Retain() {
+func (ctx Context) Retain() {
 	retainContext(ctx)
 }
 
-func (ctx *Context) GetReferenceCount() (int, error) {
-	if ctx.clContext != nil {
-		var outCount C.cl_uint
-		err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextReferenceCount), C.size_t(unsafe.Sizeof(outCount)), unsafe.Pointer(&outCount), nil)
-		return int(outCount), toError(err)
+func (ctx Context) GetReferenceCount() (int, error) {
+	if ctx.clContext == nil {
+		return int(-1), ErrInvalidContext
 	}
-	return 0, toError(C.CL_INVALID_CONTEXT)
+	var outCount C.cl_uint
+	err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextReferenceCount), C.size_t(unsafe.Sizeof(outCount)), unsafe.Pointer(&outCount), nil)
+	return int(outCount), toError(err)
 }
 
-func (ctx *Context) GetDevices() ([]*Device, error) {
-	if ctx.clContext != nil {
-		var tmpCount C.cl_device_id
-		var outDevices []C.cl_device_id
-		var devCount C.size_t
-		err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextDevices), C.size_t(unsafe.Sizeof(tmpCount)), unsafe.Pointer(&outDevices), &devCount)
-		if int(devCount) != 0 {
-			devPtr := make([]*Device, int(devCount))
-			for i := range devPtr {
-				devPtr[i].id = outDevices[i]
+func (ctx Context) GetDevices() ([]Device, error) {
+	if ctx.clContext == nil {
+		return nil, ErrInvalidContext
+	}
+	var tmpCount C.cl_device_id
+	var outDevices []C.cl_device_id
+	var devCount C.size_t
+	err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextDevices), C.size_t(unsafe.Sizeof(tmpCount)), unsafe.Pointer(&outDevices), &devCount)
+	if int(devCount) != 0 {
+		devPtr := make([]Device, int(devCount))
+		for i := range devPtr {
+			devPtr[i].id = outDevices[i]
+		}
+		return devPtr, toError(err)
+	}
+	return nil, toError(err)
+}
+
+func (ctx Context) GetNumberOfDevices() (int, error) {
+	if ctx.clContext == nil {
+		return int(-1), ErrInvalidContext
+	}
+	var outCount C.cl_uint
+	err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextNumDevices), C.size_t(unsafe.Sizeof(outCount)), unsafe.Pointer(&outCount), nil)
+	return int(outCount), toError(err)
+}
+
+func (ctx Context) GetProperties() ([]CLContextProperties, error) {
+	if ctx.clContext == nil {
+		return nil, ErrInvalidContext
+	}
+	var tmpProperty CLContextProperties
+	var tmpList []C.cl_context_properties
+	var tmpCount C.size_t
+	err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextProperties), C.size_t(unsafe.Sizeof(tmpProperty)), unsafe.Pointer(&tmpList), &tmpCount)
+	if toError(err) == nil {
+		if tmpCount == 0 {
+			return nil, nil
+		} else {
+			var outList []CLContextProperties
+			for i := 0; i < int(tmpCount/C.size_t(unsafe.Sizeof(tmpProperty))); i++ {
+				outList[i] = (CLContextProperties)(tmpList[i])
 			}
-			return devPtr, toError(err)
+			return outList, nil
 		}
-		return nil, toError(err)
 	}
-	return nil, toError(C.CL_INVALID_CONTEXT)
+	return nil, toError(err)
 }
 
-func (ctx *Context) GetNumberOfDevices() (int, error) {
-	if ctx.clContext != nil {
-		var outCount C.cl_uint
-		err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextNumDevices), C.size_t(unsafe.Sizeof(outCount)), unsafe.Pointer(&outCount), nil)
-		return int(outCount), toError(err)
+func (ctx Context) D3D10SharingExtension() (bool, error) {
+	if ctx.clContext == nil {
+		return false, ErrInvalidContext
 	}
-	return 0, toError(C.CL_INVALID_CONTEXT)
+	var tmpRes bool
+	var tmpCount C.size_t
+	if err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextD3D10PreferSharedResources), C.size_t(unsafe.Sizeof(tmpRes)), unsafe.Pointer(&tmpRes), &tmpCount); err != C.CL_SUCCESS {
+		return false, toError(err)
+	}
+	return tmpRes, nil
 }
 
-func (ctx *Context) GetProperties() ([]CLContextProperties, error) {
-	if ctx.clContext != nil {
-		var tmpProperty CLContextProperties
-		var tmpList []C.cl_context_properties
-		var tmpCount C.size_t
-		err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextProperties), C.size_t(unsafe.Sizeof(tmpProperty)), unsafe.Pointer(&tmpList), &tmpCount)
-		if toError(err) == nil {
-			if tmpCount == 0 {
-				return nil, nil
-			} else {
-				var outList []CLContextProperties
-				for i := 0; i < int(tmpCount/C.size_t(unsafe.Sizeof(tmpProperty))); i++ {
-					outList[i] = (CLContextProperties)(tmpList[i])
-				}
-				return outList, nil
-			}
-		}
-		return []CLContextProperties{}, toError(err)
+func (ctx Context) D3D11SharingExtension() (bool, error) {
+	if ctx.clContext == nil {
+		return false, ErrInvalidContext
 	}
-	return []CLContextProperties{}, toError(C.CL_INVALID_CONTEXT)
+	var tmpRes bool
+	var tmpCount C.size_t
+	if err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextD3D11PreferSharedResources), C.size_t(unsafe.Sizeof(tmpRes)), unsafe.Pointer(&tmpRes), &tmpCount); err != C.CL_SUCCESS {
+		return false, toError(err)
+	}
+	return tmpRes, nil
 }
 
-func (ctx *Context) D3D10SharingExtension() (bool, error) {
-	if ctx.clContext != nil {
-		var tmpRes bool
-		var tmpCount C.size_t
-		if err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextD3D10PreferSharedResources), C.size_t(unsafe.Sizeof(tmpRes)), unsafe.Pointer(&tmpRes), &tmpCount); err != C.CL_SUCCESS {
-			return false, toError(err)
-		}
-		return tmpRes, nil
+func (p Platform) CreateContext(devList []Device) (Context, error) {
+	if p.id == nil {
+		return EmptyContext, ErrInvalidPlatform
 	}
-	return false, toError(C.CL_INVALID_CONTEXT)
-}
-
-func (ctx *Context) D3D11SharingExtension() (bool, error) {
-	if ctx.clContext != nil {
-		var tmpRes bool
-		var tmpCount C.size_t
-		if err := C.clGetContextInfo(ctx.clContext, C.cl_context_info(ContextD3D11PreferSharedResources), C.size_t(unsafe.Sizeof(tmpRes)), unsafe.Pointer(&tmpRes), &tmpCount); err != C.CL_SUCCESS {
-			return false, toError(err)
-		}
-		return tmpRes, nil
-	}
-	return false, toError(C.CL_INVALID_CONTEXT)
-}
-
-func (p *Platform) CreateContext(devList []*Device) (*Context, error) {
-	if devList != nil {
+	if len(devList) > 0 {
 		deviceIds := buildDeviceIdList(devList)
 		var err C.cl_int
 		contxt := C.CLCreateContextOnPlatform(p.id, C.cl_uint(len(devList)), &deviceIds[0], &err)
 
 		if err != C.CL_SUCCESS {
-			return nil, toError(err)
+			return EmptyContext, toError(err)
 		}
 		if contxt == nil {
-			return nil, ErrUnknown
+			return EmptyContext, ErrUnknown
 		}
-		ctx := &Context{clContext: contxt, devices: devList}
+		ctx := Context{clContext: contxt, devices: devList}
 		return ctx, nil
 	}
-	return nil, toError(C.CL_INVALID_DEVICE)
+	return EmptyContext, ErrInvalidDevice
 }
 
-func (p *Platform) CreateContextFromType(device_type DeviceType) (*Context, error) {
+func (p Platform) CreateContextFromType(device_type DeviceType) (Context, error) {
+	if p.id == nil {
+		return EmptyContext, ErrInvalidPlatform
+	}
 	if device_type == DeviceTypeCPU || device_type == DeviceTypeGPU || device_type == DeviceTypeAccelerator || device_type == DeviceTypeDefault || device_type == DeviceTypeAll {
 		var err C.cl_int
 		contxt := C.CLCreateContextFromTypeOnPlatform(p.id, device_type.toCl(), &err)
 
 		if err != C.CL_SUCCESS {
-			return nil, toError(err)
+			return EmptyContext, toError(err)
 		}
 		if contxt == nil {
-			return nil, ErrUnknown
+			return EmptyContext, ErrUnknown
 		}
-		ctxTmp := &Context{clContext: contxt, devices: nil}
+		ctxTmp := Context{clContext: contxt, devices: nil}
 		devList, errc := ctxTmp.GetDevices()
 		if errc != nil {
-			return nil, errc
+			return EmptyContext, errc
 		}
 		if len(devList) <= 0 {
-			return nil, ErrUnknown
+			return EmptyContext, ErrUnknown
 		}
-		ctx := &Context{clContext: contxt, devices: devList}
+		ctx := Context{clContext: contxt, devices: devList}
 		return ctx, nil
 	}
-	return nil, toError(C.CL_INVALID_DEVICE)
+	return EmptyContext, toError(C.CL_INVALID_DEVICE)
 }
 
-func (devType *DeviceType) toCl() C.cl_device_type {
-	return C.cl_device_type(*devType)
+func (devType DeviceType) toCl() C.cl_device_type {
+	return C.cl_device_type(devType)
 }

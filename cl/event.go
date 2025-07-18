@@ -50,6 +50,10 @@ type Event struct {
 	clEvent C.cl_event
 }
 
+var (
+	EmptyEvent = Event{clEvent: nil}
+)
+
 // //////////////// Supporting Types ////////////////
 type CL_go_set_event_callback func(event C.cl_event, callback_status C.cl_int, user_data unsafe.Pointer)
 
@@ -64,7 +68,7 @@ func go_set_event_callback(event C.cl_event, callback_status C.cl_int, user_data
 	go_set_event_callback_func[c_user_data[1]](event, callback_status, c_user_data[0])
 }
 
-func releaseEvent(ev *Event) error {
+func releaseEvent(ev Event) error {
 	if ev.clEvent != nil {
 		err := toError(C.clReleaseEvent(ev.clEvent))
 		ev.clEvent = nil
@@ -73,7 +77,7 @@ func releaseEvent(ev *Event) error {
 	return ErrInvalidEvent
 }
 
-func retainEvent(ev *Event) error {
+func retainEvent(ev Event) error {
 	if ev.clEvent != nil {
 		return toError(C.clRetainEvent(ev.clEvent))
 	}
@@ -90,175 +94,193 @@ func retainEvent(ev *Event) error {
 // in turn refers to a fence command executing in an OpenGL command
 // stream. This provides another method of coordinating sharing of buffers
 // and images between OpenGL and OpenCL.
-func WaitForEvents(events []*Event) error {
-	eventWaitListPtr, WaitListLen := eventListPtr(events)
-	return toError(C.clWaitForEvents(C.cl_uint(WaitListLen), eventWaitListPtr))
+func WaitForEvents(events []Event) error {
+	evtWL, WaitListLen := eventListPtr(events)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	return toError(C.clWaitForEvents(C.cl_uint(WaitListLen), WL))
 }
 
-func newEvent(ev C.cl_event) *Event {
-	evt := new(Event)
-	evt.clEvent = ev
-	return evt
+func newEvent(ev C.cl_event) Event {
+	return Event{clEvent: ev}
 	//runtime.SetFinalizer(ev, releaseEvent) // needed (??)
 	//return ev
 }
 
-func eventListPtr(el []*Event) (*C.cl_event, int) {
-	if el == nil {
-		return nil, 0
-	}
+func eventListPtr(el []Event) ([]C.cl_event, int) {
 	elist := []C.cl_event{}
 	for _, e := range el {
-		if e != nil {
+		if e.clEvent != nil {
 			elist = append(elist, e.clEvent)
 		}
 	}
-	if len(elist) == 0 {
-		return nil, 0
-	} else {
-		return (*C.cl_event)(&elist[0]), len(elist)
-	}
+	return elist, len(elist)
 }
 
 // ////////////// Abstract Functions ///////////////
-func (e *Event) Release() error {
+func (e Event) Release() error {
 	return releaseEvent(e)
 }
 
-func (e *Event) Retain() error {
+func (e Event) Retain() error {
 	return retainEvent(e)
 }
 
-func (e *Event) GetEventProfilingInfo(paramName ProfilingInfo) (int64, error) {
-	if e.clEvent != nil {
-		var paramValue C.cl_ulong
-		if err := C.clGetEventProfilingInfo(e.clEvent, C.cl_profiling_info(paramName), C.size_t(unsafe.Sizeof(paramValue)), unsafe.Pointer(&paramValue), nil); err != C.CL_SUCCESS {
-			return 0, toError(err)
-		}
-		return int64(paramValue), nil
+func (e Event) GetEventProfilingInfo(paramName ProfilingInfo) (int64, error) {
+	if e.clEvent == nil {
+		return int64(-1), ErrInvalidEvent
 	}
-	return int64(-1), toError(C.CL_INVALID_EVENT)
+	var paramValue C.cl_ulong
+	if err := C.clGetEventProfilingInfo(e.clEvent, C.cl_profiling_info(paramName), C.size_t(unsafe.Sizeof(paramValue)), unsafe.Pointer(&paramValue), nil); err != C.CL_SUCCESS {
+		return int64(0), toError(err)
+	}
+	return int64(paramValue), nil
 }
 
-func (e *Event) GetCommandQueue() (*CommandQueue, error) {
-	if e.clEvent != nil {
-		var outQueue C.cl_command_queue
-		err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_COMMAND_QUEUE, C.size_t(unsafe.Sizeof(outQueue)), unsafe.Pointer(&outQueue), nil)
-		return &CommandQueue{clQueue: outQueue, device: nil}, toError(err)
+func (e Event) GetCommandQueue() (CommandQueue, error) {
+	if e.clEvent == nil {
+		return EmptyCommandQueue, ErrInvalidEvent
 	}
-	return nil, toError(C.CL_INVALID_EVENT)
+	var outQueue C.cl_command_queue
+	err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_COMMAND_QUEUE, C.size_t(unsafe.Sizeof(outQueue)), unsafe.Pointer(&outQueue), nil)
+	return CommandQueue{clQueue: outQueue, device: EmptyDevice}, toError(err)
 }
 
-func (e *Event) GetContext() (*Context, error) {
-	if e.clEvent != nil {
-		var outContext C.cl_context
-		err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_CONTEXT, C.size_t(unsafe.Sizeof(outContext)), unsafe.Pointer(&outContext), nil)
-		return &Context{clContext: outContext, devices: nil}, toError(err)
+func (e Event) GetContext() (Context, error) {
+	if e.clEvent == nil {
+		return EmptyContext, ErrInvalidEvent
 	}
-	return nil, toError(C.CL_INVALID_EVENT)
+	var outContext C.cl_context
+	err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_CONTEXT, C.size_t(unsafe.Sizeof(outContext)), unsafe.Pointer(&outContext), nil)
+	return Context{clContext: outContext, devices: nil}, toError(err)
 }
 
-func (e *Event) GetCommandType() (CommandType, error) {
-	if e.clEvent != nil {
-		var status C.cl_command_type
-		var err C.cl_int
-		err = C.clGetEventInfo(e.clEvent, C.CL_EVENT_COMMAND_TYPE, C.size_t(unsafe.Sizeof(status)), unsafe.Pointer(&status), nil)
-		switch status {
-		case C.CL_COMMAND_NDRANGE_KERNEL:
-			return CommandNDRangeKernel, toError(err)
-		case C.CL_COMMAND_TASK:
-			return CommandTask, toError(err)
-		case C.CL_COMMAND_NATIVE_KERNEL:
-			return CommandNativeKernel, toError(err)
-		case C.CL_COMMAND_READ_BUFFER:
-			return CommandReadBuffer, toError(err)
-		case C.CL_COMMAND_WRITE_BUFFER:
-			return CommandWriteBuffer, toError(err)
-		case C.CL_COMMAND_COPY_BUFFER:
-			return CommandCopyBuffer, toError(err)
-		case C.CL_COMMAND_READ_IMAGE:
-			return CommandReadImage, toError(err)
-		case C.CL_COMMAND_WRITE_IMAGE:
-			return CommandWriteImage, toError(err)
-		case C.CL_COMMAND_COPY_IMAGE:
-			return CommandCopyImage, toError(err)
-		case C.CL_COMMAND_COPY_BUFFER_TO_IMAGE:
-			return CommandCopyBufferToImage, toError(err)
-		case C.CL_COMMAND_COPY_IMAGE_TO_BUFFER:
-			return CommandCopyImageToBuffer, toError(err)
-		case C.CL_COMMAND_MAP_BUFFER:
-			return CommandMapBuffer, toError(err)
-		case C.CL_COMMAND_MAP_IMAGE:
-			return CommandMapImage, toError(err)
-		case C.CL_COMMAND_UNMAP_MEM_OBJECT:
-			return CommandUnmapMemObject, toError(err)
-		case C.CL_COMMAND_MARKER:
-			return CommandMarker, toError(err)
-		default:
-			return -1, toError(err)
-		}
+func (e Event) GetCommandType() (CommandType, error) {
+	if e.clEvent == nil {
+		return -1, ErrInvalidEvent
 	}
-	return -1, toError(C.CL_INVALID_EVENT)
+	var status C.cl_command_type
+	var err C.cl_int
+	err = C.clGetEventInfo(e.clEvent, C.CL_EVENT_COMMAND_TYPE, C.size_t(unsafe.Sizeof(status)), unsafe.Pointer(&status), nil)
+	switch status {
+	case C.CL_COMMAND_NDRANGE_KERNEL:
+		return CommandNDRangeKernel, toError(err)
+	case C.CL_COMMAND_TASK:
+		return CommandTask, toError(err)
+	case C.CL_COMMAND_NATIVE_KERNEL:
+		return CommandNativeKernel, toError(err)
+	case C.CL_COMMAND_READ_BUFFER:
+		return CommandReadBuffer, toError(err)
+	case C.CL_COMMAND_WRITE_BUFFER:
+		return CommandWriteBuffer, toError(err)
+	case C.CL_COMMAND_COPY_BUFFER:
+		return CommandCopyBuffer, toError(err)
+	case C.CL_COMMAND_READ_IMAGE:
+		return CommandReadImage, toError(err)
+	case C.CL_COMMAND_WRITE_IMAGE:
+		return CommandWriteImage, toError(err)
+	case C.CL_COMMAND_COPY_IMAGE:
+		return CommandCopyImage, toError(err)
+	case C.CL_COMMAND_COPY_BUFFER_TO_IMAGE:
+		return CommandCopyBufferToImage, toError(err)
+	case C.CL_COMMAND_COPY_IMAGE_TO_BUFFER:
+		return CommandCopyImageToBuffer, toError(err)
+	case C.CL_COMMAND_MAP_BUFFER:
+		return CommandMapBuffer, toError(err)
+	case C.CL_COMMAND_MAP_IMAGE:
+		return CommandMapImage, toError(err)
+	case C.CL_COMMAND_UNMAP_MEM_OBJECT:
+		return CommandUnmapMemObject, toError(err)
+	case C.CL_COMMAND_MARKER:
+		return CommandMarker, toError(err)
+	default:
+		return -1, toError(err)
+	}
 }
 
-func (e *Event) GetStatus() (CommandExecStatus, error) {
-	if e.clEvent != nil {
-		var status C.cl_int
-		err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_COMMAND_EXECUTION_STATUS, C.size_t(unsafe.Sizeof(status)), unsafe.Pointer(&status), nil)
-		switch {
-		case status == C.CL_QUEUED:
-			return CommandExecStatusQueued, toError(err)
-		case status == C.CL_SUBMITTED:
-			return CommandExecStatusSubmitted, toError(err)
-		case status == C.CL_RUNNING:
-			return CommandExecStatusRunning, toError(err)
-		case status == C.CL_COMPLETE:
-			return CommandExecStatusComplete, toError(err)
-		default:
-			return -1, toError(err)
-		}
+func (e Event) GetStatus() (CommandExecStatus, error) {
+	if e.clEvent == nil {
+		return -1, ErrInvalidEvent
 	}
-	return -1, toError(C.CL_INVALID_EVENT)
+	var status C.cl_int
+	err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_COMMAND_EXECUTION_STATUS, C.size_t(unsafe.Sizeof(status)), unsafe.Pointer(&status), nil)
+	switch {
+	case status == C.CL_QUEUED:
+		return CommandExecStatusQueued, toError(err)
+	case status == C.CL_SUBMITTED:
+		return CommandExecStatusSubmitted, toError(err)
+	case status == C.CL_RUNNING:
+		return CommandExecStatusRunning, toError(err)
+	case status == C.CL_COMPLETE:
+		return CommandExecStatusComplete, toError(err)
+	default:
+		return -1, toError(err)
+	}
 }
 
-func (e *Event) GetReferenceCount() (int, error) {
-	if e.clEvent != nil {
-		var outCount C.cl_uint
-		err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_REFERENCE_COUNT, C.size_t(unsafe.Sizeof(outCount)), unsafe.Pointer(&outCount), nil)
-		return int(outCount), toError(err)
+func (e Event) GetReferenceCount() (int, error) {
+	if e.clEvent == nil {
+		return int(-1), ErrInvalidEvent
 	}
-	return 0, toError(C.CL_INVALID_EVENT)
+	var outCount C.cl_uint
+	err := C.clGetEventInfo(e.clEvent, C.CL_EVENT_REFERENCE_COUNT, C.size_t(unsafe.Sizeof(outCount)), unsafe.Pointer(&outCount), nil)
+	return int(outCount), toError(err)
 }
 
-func (ctx *Context) CreateUserEvent() (*Event, error) {
+func (ctx Context) CreateUserEvent() (Event, error) {
+	if ctx.clContext == nil {
+		return EmptyEvent, ErrInvalidEvent
+	}
 	var err C.cl_int
 	clEvent := C.clCreateUserEvent(ctx.clContext, &err)
 	if err != C.CL_SUCCESS {
-		return nil, toError(err)
+		return EmptyEvent, toError(err)
 	}
 	return newEvent(clEvent), nil
 }
 
-func (ev *Event) SetUserEventStatus(status CommandExecStatus) error {
+func (ev Event) SetUserEventStatus(status CommandExecStatus) error {
+	if ev.clEvent == nil {
+		return ErrInvalidEvent
+	}
 	return toError(C.clSetUserEventStatus(ev.clEvent, (C.cl_int)(status)))
 }
 
-func (ev *Event) SetEventCallback(status CommandExecStatus, user_data unsafe.Pointer) error {
+func (ev Event) SetEventCallback(status CommandExecStatus, user_data unsafe.Pointer) error {
+	if ev.clEvent == nil {
+		return ErrInvalidEvent
+	}
 	return toError(C.CLSetEventCallback(ev.clEvent, (C.cl_int)(status), user_data))
 }
 
 // A synchronization point that enqueues a barrier operation.
-func (q *CommandQueue) EnqueueBarrierWithWaitList(eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueBarrierWithWaitList(eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidEvent
+	}
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueBarrierWithWaitList(q.clQueue, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueBarrierWithWaitList(q.clQueue, C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueues a marker command which waits for either a list of events to complete, or all previously enqueued commands to complete.
-func (q *CommandQueue) EnqueueMarkerWithWaitList(eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueMarkerWithWaitList(eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidEvent
+	}
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueMarkerWithWaitList(q.clQueue, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueMarkerWithWaitList(q.clQueue, C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }

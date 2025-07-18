@@ -56,7 +56,7 @@ func main() {
 	outcode := printHeader()
 
 	if len(gpuIdMap) > 0 {
-		binariesMap = make(map[string]*cl.ProgramBinaries)
+		binariesMap = make(map[string]cl.ProgramBinaries)
 	} else {
 		fmt.Println("No GPUs available...exiting")
 		return
@@ -78,7 +78,7 @@ func main() {
 			outBinIdx += ", "
 		}
 		outBinIdx += strconv.Itoa(binIdx)
-		var gpuArg []*cl.Device
+		var gpuArg []cl.Device
 		gpuArg = append(gpuArg, GPUList[gpuId].Device)
 		if *Flag_verbose > 2 {
 			fmt.Println("    Creating context on GPU: ", gpuId)
@@ -149,7 +149,7 @@ func main() {
 		if *Flag_verbose > 1 {
 			fmt.Println("        using options: ", buildOpts)
 		}
-		err = tmpProgram.BuildProgram([]*cl.Device{GPUList[gpuId].Device}, buildOpts)
+		err = tmpProgram.BuildProgram([]cl.Device{GPUList[gpuId].Device}, buildOpts)
 		if err != nil {
 			fmt.Println("    Error building binary for program on GPU.")
 			tmpProgram.Release()
@@ -223,7 +223,7 @@ func main() {
 			}
 		}
 
-		var bins *cl.ProgramBinaries
+		var bins cl.ProgramBinaries
 		bins, err = tmpProgram.GetBinaries()
 		if err != nil {
 			fmt.Println("    Error getting binaries for program on GPU.")
@@ -254,7 +254,7 @@ func main() {
 		}
 
 		tmpProgram.Release()
-		tmpProgram, err = tmpContext.CreateProgramWithBinary([]*cl.Device{GPUList[gpuId].Device}, bins.GetBinarySizes(), binsArrays)
+		tmpProgram, err = tmpContext.CreateProgramWithBinary([]cl.Device{GPUList[gpuId].Device}, bins.GetBinarySizes(), binsArrays)
 		if err != nil {
 			if *Flag_verbose > 2 {
 				fmt.Printf("**** CreateProgramWithBinary(): failed to create program with binary: %+v \n", err)

@@ -18,25 +18,23 @@ func NewSlice(nComp int, size [3]int) *data.Slice {
 
 func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 	var err error
-	var fillWait []*cl.Event
+	var fillWait []cl.Event
 	var tmp_buf *cl.MemObject
-	var queue *cl.CommandQueue
-	var event *cl.Event
+	var queue cl.CommandQueue
+	var event cl.Event
 
 	length := prod(size)
 	bytes := length * SIZEOF_FLOAT32
 	ptrs := make([]unsafe.Pointer, nComp)
 	initVal := float32(0.0)
-	fillWait = []*cl.Event{}
+	fillWait = []cl.Event{}
 
 	// sequence command according to queue
 	evtWL := GetLatestCmd()
 
 	for c := range ptrs {
-		tmp_buf = nil
-		queue = nil
-		event = nil
-		tmp_buf, err = ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
+		tmp_buf = new(cl.MemObject)
+		*tmp_buf, err = ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
 		if err != nil {
 			fmt.Printf("CreateEmptyBuffer failed in newSlice: %+v \n", err)
 		}
@@ -52,7 +50,7 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 		}
 
 		// execute
-		if event, err = queue.EnqueueFillBuffer(tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
+		if event, err = queue.EnqueueFillBuffer(*tmp_buf, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 			log.Fatalf("EnqueueFillBuffer failed in newslice: %+v \n", err)
 		}
 
@@ -89,8 +87,8 @@ func memFree(ptr unsafe.Pointer) {
 
 func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	// debug
 	if Synchronous {
@@ -102,14 +100,13 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	evtWL := GetLatestCmd()
 
 	// create command queue and execute
-	queue = nil
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in memcpyDtoH: %+v \n", err)
 	}
 	// execute
-	event = nil
 	log.Printf("d2h event: %+v \n", event)
-	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(src), false, 0, bytes, dst, evtWL); err != nil {
+	src_ := (*cl.MemObject)(src)
+	if event, err = queue.EnqueueReadBuffer(*src_, false, 0, bytes, dst, evtWL); err != nil {
 		log.Panicf("EnqueueReadBuffer in memcpyDtoH failed: %+v \n", err)
 	}
 	log.Printf("d2h event (after): %+v \n", event)
@@ -136,8 +133,8 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 
 func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	// debug
 	if Synchronous {
@@ -152,7 +149,8 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in memcpyHtoD: %+v \n", err)
 	}
-	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(dst), false, 0, bytes, src, evtWL); err != nil {
+	dst_ := (*cl.MemObject)(dst)
+	if event, err = queue.EnqueueWriteBuffer(*dst_, false, 0, bytes, src, evtWL); err != nil {
 		log.Panicf("EnqueueWriteBuffer in memcpyHtoD failed: %+v \n", err)
 	}
 
@@ -176,8 +174,8 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 
 func MemCpy(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	// debug
 	if Synchronous {
@@ -193,7 +191,8 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 		log.Panicf("failed to create command queue in memcpy: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueCopyBuffer((*cl.MemObject)(src), (*cl.MemObject)(dst), 0, 0, bytes, evtWL); err != nil {
+	dst_, src_ := (*cl.MemObject)(dst), (*cl.MemObject)(src)
+	if event, err = queue.EnqueueCopyBuffer(*src_, *dst_, 0, 0, bytes, evtWL); err != nil {
 		log.Panicf("EnqueueCopyBuffer in memcpy failed: %+v \n", err)
 	}
 
@@ -219,8 +218,8 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 // To be carefully used on unified slice (need sync)
 func Memset(s *data.Slice, val ...float32) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	// debug
 	if Synchronous {
@@ -233,7 +232,7 @@ func Memset(s *data.Slice, val ...float32) {
 	// sequence command according to queue
 	evtWL := GetLatestCmd()
 
-	evtList := []*cl.Event{}
+	evtList := []cl.Event{}
 	for c, v := range val {
 
 		// create command queue and execute
@@ -241,7 +240,8 @@ func Memset(s *data.Slice, val ...float32) {
 			log.Panicf("failed to create command queue in memset: %+v \n", err)
 		}
 		// execute
-		if event, err = queue.EnqueueFillBuffer((*cl.MemObject)(s.DevPtr(c)), unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
+		buf_ptr := (*cl.MemObject)(s.DevPtr(c))
+		if event, err = queue.EnqueueFillBuffer(*buf_ptr, unsafe.Pointer(&v), SIZEOF_FLOAT32, 0, s.Len()*SIZEOF_FLOAT32, evtWL); err != nil {
 			log.Panicf("EnqueueFillBuffer in memset failed: %+v \n", err)
 		}
 
@@ -279,8 +279,8 @@ func SetCell(s *data.Slice, comp int, ix, iy, iz int, value float32) {
 
 func SetElem(s *data.Slice, comp int, index int, value float32) {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	f := value
 
@@ -297,7 +297,8 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 		log.Panicf("failed to create command queue in setelem: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueWriteBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
+	buf_ptr := (*cl.MemObject)(s.DevPtr(comp))
+	if event, err = queue.EnqueueWriteBuffer(*buf_ptr, false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
 		log.Panicf("setelem failed: %+v \n", err)
 	}
 
@@ -320,8 +321,8 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 
 func GetElem(s *data.Slice, comp int, index int) float32 {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 	var f float32
 
 	if Synchronous { // debug
@@ -337,7 +338,8 @@ func GetElem(s *data.Slice, comp int, index int) float32 {
 		log.Panicf("failed to create command queue in getelem: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueReadBuffer((*cl.MemObject)(s.DevPtr(comp)), false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
+	buf_ptr := (*cl.MemObject)(s.DevPtr(comp))
+	if event, err = queue.EnqueueReadBuffer(*buf_ptr, false, index*SIZEOF_FLOAT32, SIZEOF_FLOAT32, unsafe.Pointer(&f), evtWL); err != nil {
 		log.Panicf("EnqueueReadBuffer failed: %+v \n", err)
 	}
 

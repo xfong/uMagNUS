@@ -10,7 +10,9 @@ import (
 
 // Wrapper for cu.MemAlloc, fatal exit on out of memory.
 func MemAlloc(bytes int) *cl.MemObject {
-	memObj, err := ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
+	var err error
+	memObj := new(cl.MemObject)
+	*memObj, err = ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
 	if err == cl.ErrMemObjectAllocationFailure || err == cl.ErrOutOfResources {
 		log.Fatal(err)
 	}
@@ -23,12 +25,14 @@ func MemAlloc(bytes int) *cl.MemObject {
 }
 
 func MemAllocFloat32(N int) *cl.MemObject {
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var err error
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	initVal := float32(0.0)
 
-	memObj, err := ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
+	memObj := new(cl.MemObject)
+	*memObj, err = ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
 	if err == cl.ErrMemObjectAllocationFailure || err == cl.ErrOutOfResources {
 		log.Fatal(err)
 	}
@@ -45,7 +49,7 @@ func MemAllocFloat32(N int) *cl.MemObject {
 		log.Panicf("failed to create command queue in memallocfloat32: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueFillBuffer(memObj, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
+	if event, err = queue.EnqueueFillBuffer(*memObj, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 		log.Panicf("enqueuefillbuffer failed in memallocfloat32: %+v \n", err)
 	}
 
@@ -62,12 +66,14 @@ func MemAllocFloat32(N int) *cl.MemObject {
 }
 
 func MemAllocFloat64(N int) *cl.MemObject {
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var err error
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	initVal := float32(0.0)
 
-	memObj, err := ClCtx.CreateEmptyBufferFloat64(cl.MemReadWrite, N)
+	memObj := new(cl.MemObject)
+	*memObj, err = ClCtx.CreateEmptyBufferFloat64(cl.MemReadWrite, N)
 	if err == cl.ErrMemObjectAllocationFailure || err == cl.ErrOutOfResources {
 		log.Fatal(err)
 	}
@@ -84,7 +90,7 @@ func MemAllocFloat64(N int) *cl.MemObject {
 		log.Panicf("failed to create command queue in memallocfloat64: %+v \n", err)
 	}
 	// execute
-	if event, err = queue.EnqueueFillBuffer(memObj, unsafe.Pointer(&initVal), SIZEOF_FLOAT64, 0, bytes, evtWL); err != nil {
+	if event, err = queue.EnqueueFillBuffer(*memObj, unsafe.Pointer(&initVal), SIZEOF_FLOAT64, 0, bytes, evtWL); err != nil {
 		log.Panicf("enqueuefillbuffer failed in memallocfloat64: %+v \n", err)
 	}
 

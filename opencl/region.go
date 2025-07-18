@@ -75,7 +75,7 @@ func RegionSelect(dst, src *data.Slice, regions *Bytes, region byte) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, dst.NComp())
+	evtList := make([]cl.Event, dst.NComp())
 	for c := 0; c < dst.NComp(); c++ {
 		event := k_regionselect_async(dst.DevPtr(c), src.DevPtr(c), regions.Ptr, region, N, cfg,
 			evtWL)

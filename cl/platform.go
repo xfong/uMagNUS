@@ -28,28 +28,36 @@ type Platform struct {
 	id C.cl_platform_id
 }
 
+var (
+	EmptyPlatform = Platform{id: nil}
+)
+
 //////////////// Basic Functions ////////////////
 
 // Obtain the list of platforms available.
-func GetPlatforms() ([]*Platform, error) {
+func GetPlatforms() ([]Platform, error) {
 	var platformIds [maxPlatforms]C.cl_platform_id
 	var nPlatforms C.cl_uint
 	if err := C.clGetPlatformIDs(C.cl_uint(maxPlatforms), &platformIds[0], &nPlatforms); err != C.CL_SUCCESS {
 		return nil, toError(err)
 	}
-	platforms := make([]*Platform, nPlatforms)
+	platforms := make([]Platform, nPlatforms)
 	for i := 0; i < int(nPlatforms); i++ {
-		platforms[i] = &Platform{id: platformIds[i]}
+		platforms[i] = Platform{id: platformIds[i]}
 	}
 	return platforms, nil
 }
 
 // ////////////// Abstract Functions ////////////////
-func (p *Platform) GetDevices(deviceType DeviceType) ([]*Device, error) {
+func (p Platform) GetDevices(deviceType DeviceType) ([]Device, error) {
 	return GetDevices(p, deviceType)
 }
 
-func (p *Platform) getInfoString(param C.cl_platform_info) (string, error) {
+func (p Platform) getInfoString(param C.cl_platform_info) (string, error) {
+	if p.id == nil {
+		return "", ErrInvalidPlatform
+	}
+
 	var strN C.size_t
 	if err := C.CLGetPlatformInfoParamSize(p.id, param, &strN); err != C.CL_SUCCESS {
 		return "", toError(err)
@@ -63,7 +71,7 @@ func (p *Platform) getInfoString(param C.cl_platform_info) (string, error) {
 	return retString, nil
 }
 
-func (p *Platform) Name() string {
+func (p Platform) Name() string {
 	if str, err := p.getInfoString(C.CL_PLATFORM_NAME); err != nil {
 		panic("Platform.Name() should never fail")
 	} else {
@@ -71,7 +79,7 @@ func (p *Platform) Name() string {
 	}
 }
 
-func (p *Platform) Vendor() string {
+func (p Platform) Vendor() string {
 	if str, err := p.getInfoString(C.CL_PLATFORM_VENDOR); err != nil {
 		panic("Platform.Vendor() should never fail")
 	} else {
@@ -79,7 +87,7 @@ func (p *Platform) Vendor() string {
 	}
 }
 
-func (p *Platform) Profile() string {
+func (p Platform) Profile() string {
 	if str, err := p.getInfoString(C.CL_PLATFORM_PROFILE); err != nil {
 		panic("Platform.Profile() should never fail")
 	} else {
@@ -87,7 +95,7 @@ func (p *Platform) Profile() string {
 	}
 }
 
-func (p *Platform) Version() string {
+func (p Platform) Version() string {
 	if str, err := p.getInfoString(C.CL_PLATFORM_VERSION); err != nil {
 		panic("Platform.Version() should never fail")
 	} else {
@@ -95,7 +103,7 @@ func (p *Platform) Version() string {
 	}
 }
 
-func (p *Platform) Extensions() string {
+func (p Platform) Extensions() string {
 	if str, err := p.getInfoString(C.CL_PLATFORM_EXTENSIONS); err != nil {
 		panic("Platform.Extensions() should never fail")
 	} else {

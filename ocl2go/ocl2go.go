@@ -242,9 +242,9 @@ func init(){
 	{{end}} }
 
 // Wrapper for {{.Name}} OpenCL kernel, asynchronous.
-func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{end}} cfg *config, events []*cl.Event) *cl.Event {
+func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{end}} cfg *config, events []cl.Event) cl.Event {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 
 	if Synchronous{ // debug
 		if err = cl.WaitForEvents(events); err != nil {
@@ -266,7 +266,7 @@ func k_{{.Name}}_async ( {{range $i, $t := .ArgT}}{{index $.ArgN $i}} {{$t}}, {{
 	event = LaunchKernel("{{.Name}}", cfg.Grid, cfg.Block, events) // execute
 
 	if Synchronous{ // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			fmt.Printf("failed to wait for kernel to complete at end of {{.Name}}: %+v \n", err)
 		}
 		timer.Stop("{{.Name}}")

@@ -18,7 +18,7 @@ type fft3DR2CPlan struct {
 // 3D single-precision real-to-complex FFT plan.
 func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 	var err error
-	var queue *cl.CommandQueue
+	var queue cl.CommandQueue
 	if queue, err = CreateCommandQueue(); err != nil {
 		log.Panicf("failed to create command queue in newFFT3DR2C: %+v \n", err)
 	}
@@ -32,8 +32,8 @@ func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 // src and dst are 3D arrays stored 1D arrays.
 func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	var err error
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	if Synchronous {
 		WaitCommandSequence()
@@ -50,9 +50,9 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 		log.Panicf("fft size mismatch: expecting dst len %v, got %v", okdstlen, dst.Len())
 	}
 	tmpPtr := src.DevPtr(0)
-	srcMemObj := *(*cl.MemObject)(tmpPtr)
+	srcMemObj := (*cl.MemObject)(tmpPtr)
 	tmpPtr = dst.DevPtr(0)
-	dstMemObj := *(*cl.MemObject)(tmpPtr)
+	dstMemObj := (*cl.MemObject)(tmpPtr)
 
 	// sequence command according to queue
 	if queue, err = CreateCommandQueue(); err != nil {
@@ -75,7 +75,7 @@ func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	p.handle.SetQueueEvent(event)
 
 	// execute
-	if err = p.handle.EnqueueForwardTransform([]*cl.MemObject{&srcMemObj}, []*cl.MemObject{&dstMemObj}); err != nil {
+	if err = p.handle.EnqueueForwardTransform([]cl.MemObject{*srcMemObj}, []cl.MemObject{*dstMemObj}); err != nil {
 		log.Printf("Failed to enqueue fwFFT: %+v \n", err)
 	}
 
@@ -115,6 +115,6 @@ func (p *fft3DR2CPlan) OutputLen() int {
 }
 
 // Return command queue associated with the plan
-func (p *fft3DR2CPlan) GetCommandQueue() *cl.CommandQueue {
+func (p *fft3DR2CPlan) GetCommandQueue() cl.CommandQueue {
 	return p.handle.GetCommandQueue()
 }

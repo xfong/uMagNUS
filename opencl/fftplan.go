@@ -9,7 +9,7 @@ import (
 
 // Base implementation for all FFT plans.
 type fftplan struct {
-	handle *cl.VkfftPlan
+	handle cl.VkfftPlan
 }
 
 func prod3(x, y, z int) int {
@@ -18,8 +18,5 @@ func prod3(x, y, z int) int {
 
 // Releases all resources associated with the FFT plan.
 func (p *fftplan) Free() {
-	if p.handle != nil {
-		p.handle.Destroy()
-		p.handle = nil
-	}
+	p.handle.Destroy()
 }

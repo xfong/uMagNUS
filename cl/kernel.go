@@ -43,6 +43,10 @@ type Kernel struct {
 	name     string
 }
 
+var (
+	EmptyKernel = Kernel{clKernel: nil, name: ""}
+)
+
 // ////////////// Golang Types ////////////////
 type LocalBuffer int
 
@@ -63,7 +67,7 @@ func go_native_kernel(user_data unsafe.Pointer) {
 	go_native_kernel_func[c_user_data[1]](c_user_data[0])
 }
 
-func releaseKernel(k *Kernel) error {
+func releaseKernel(k Kernel) error {
 	if k.clKernel != nil {
 		err := toError(C.clReleaseKernel(k.clKernel))
 		k.clKernel = nil
@@ -72,7 +76,7 @@ func releaseKernel(k *Kernel) error {
 	return ErrInvalidKernel
 }
 
-func retainKernel(k *Kernel) error {
+func retainKernel(k Kernel) error {
 	if k.clKernel != nil {
 		return toError(C.clRetainKernel(k.clKernel))
 	}
@@ -80,15 +84,15 @@ func retainKernel(k *Kernel) error {
 }
 
 // ////////////// Abstract Functions ////////////////
-func (k *Kernel) Release() error {
+func (k Kernel) Release() error {
 	return releaseKernel(k)
 }
 
-func (k *Kernel) Retain() error {
+func (k Kernel) Retain() error {
 	return retainKernel(k)
 }
 
-func (k *Kernel) SetArgs(args ...interface{}) error {
+func (k Kernel) SetArgs(args ...interface{}) error {
 	for index, arg := range args {
 		if err := k.SetArg(index, arg); err != nil {
 			return err
@@ -97,7 +101,10 @@ func (k *Kernel) SetArgs(args ...interface{}) error {
 	return nil
 }
 
-func (k *Kernel) SetArg(index int, arg interface{}) error {
+func (k Kernel) SetArg(index int, arg interface{}) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	switch val := arg.(type) {
 	case uint8:
 		return k.SetArgUint8(index, val)
@@ -113,7 +120,7 @@ func (k *Kernel) SetArg(index int, arg interface{}) error {
 		return k.SetArgFloat32(index, val)
 	case float64:
 		return k.SetArgFloat64(index, val)
-	case *MemObject:
+	case MemObject:
 		return k.SetArgBuffer(index, val)
 	case LocalBuffer:
 		return k.SetArgLocal(index, int(val))
@@ -122,7 +129,10 @@ func (k *Kernel) SetArg(index int, arg interface{}) error {
 	}
 }
 
-func (k *Kernel) ArgAddressQualifier(index int) (string, error) {
+func (k Kernel) ArgAddressQualifier(index int) (string, error) {
+	if k.clKernel == nil {
+		return "", ErrInvalidKernel
+	}
 	var val C.cl_kernel_arg_address_qualifier
 	var err C.cl_int
 	defer C.free(unsafe.Pointer(&err))
@@ -143,7 +153,10 @@ func (k *Kernel) ArgAddressQualifier(index int) (string, error) {
 	}
 }
 
-func (k *Kernel) ArgAccessQualifier(index int) (string, error) {
+func (k Kernel) ArgAccessQualifier(index int) (string, error) {
+	if k.clKernel == nil {
+		return "", ErrInvalidKernel
+	}
 	var val C.cl_kernel_arg_access_qualifier
 	var err C.cl_int
 	defer C.free(unsafe.Pointer(&err))
@@ -164,13 +177,19 @@ func (k *Kernel) ArgAccessQualifier(index int) (string, error) {
 	}
 }
 
-func (k *Kernel) ArgTypeQualifier(index int) (C.cl_kernel_arg_type_qualifier, error) {
+func (k Kernel) ArgTypeQualifier(index int) (C.cl_kernel_arg_type_qualifier, error) {
+	if k.clKernel == nil {
+		return 0, ErrInvalidKernel
+	}
 	var val C.cl_kernel_arg_type_qualifier
 	err := C.clGetKernelArgInfo(k.clKernel, C.cl_uint(index), C.CL_KERNEL_ARG_TYPE_QUALIFIER, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil)
 	return val, toError(err)
 }
 
-func (k *Kernel) ArgName(index int) (string, error) {
+func (k Kernel) ArgName(index int) (string, error) {
+	if k.clKernel == nil {
+		return "", ErrInvalidKernel
+	}
 	var strC [1024]byte
 	var strN C.size_t
 	if err := C.clGetKernelArgInfo(k.clKernel, C.cl_uint(index), C.CL_KERNEL_ARG_NAME, 1024, unsafe.Pointer(&strC[0]), &strN); err != C.CL_SUCCESS {
@@ -179,7 +198,10 @@ func (k *Kernel) ArgName(index int) (string, error) {
 	return string(strC[:strN]), nil
 }
 
-func (k *Kernel) ArgTypeName(index int) (string, error) {
+func (k Kernel) ArgTypeName(index int) (string, error) {
+	if k.clKernel == nil {
+		return "", ErrInvalidKernel
+	}
 	var strC [1024]byte
 	var strN C.size_t
 	if err := C.clGetKernelArgInfo(k.clKernel, C.cl_uint(index), C.CL_KERNEL_ARG_TYPE_NAME, 1024, unsafe.Pointer(&strC[0]), &strN); err != C.CL_SUCCESS {
@@ -188,69 +210,110 @@ func (k *Kernel) ArgTypeName(index int) (string, error) {
 	return string(strC[:strN]), nil
 }
 
-func (k *Kernel) SetArgBuffer(index int, buffer *MemObject) error {
+func (k Kernel) SetArgBuffer(index int, buffer MemObject) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(buffer.clMem)), unsafe.Pointer(&buffer.clMem))
 }
 
-func (k *Kernel) SetArgFloat32(index int, val float32) error {
+func (k Kernel) SetArgFloat32(index int, val float32) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgFloat64(index int, val float64) error {
+func (k Kernel) SetArgFloat64(index int, val float64) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgInt8(index int, val int8) error {
+func (k Kernel) SetArgInt8(index int, val int8) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgUint8(index int, val uint8) error {
+func (k Kernel) SetArgUint8(index int, val uint8) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgInt32(index int, val int32) error {
+func (k Kernel) SetArgInt32(index int, val int32) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgUint32(index int, val uint32) error {
+func (k Kernel) SetArgUint32(index int, val uint32) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgUint64(index int, val uint64) error {
+func (k Kernel) SetArgUint64(index int, val uint64) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, int(unsafe.Sizeof(val)), unsafe.Pointer(&val))
 }
 
-func (k *Kernel) SetArgLocal(index int, size int) error {
+func (k Kernel) SetArgLocal(index int, size int) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return k.SetArgUnsafe(index, size, nil)
 }
 
-func (k *Kernel) SetArgUnsafe(index, argSize int, arg unsafe.Pointer) error {
-	//fmt.Println("FUNKY: ", index, argSize)
+func (k Kernel) SetArgUnsafe(index, argSize int, arg unsafe.Pointer) error {
+	if k.clKernel == nil {
+		return ErrInvalidKernel
+	}
 	return toError(C.clSetKernelArg(k.clKernel, C.cl_uint(index), C.size_t(argSize), arg))
 }
 
-func (k *Kernel) GlobalWorkGroupSize(device *Device) ([3]int, error) {
+func (k Kernel) GlobalWorkGroupSize(device Device) ([3]int, error) {
 	var size [3]C.size_t
+	if k.clKernel == nil {
+		return [3]int{-1, -1, -1}, ErrInvalidKernel
+	}
 	if err := C.clGetKernelWorkGroupInfo(k.clKernel, device.nullableId(), C.CL_KERNEL_GLOBAL_WORK_SIZE, C.size_t(unsafe.Sizeof(size)), unsafe.Pointer(&size[0]), nil); err != C.CL_SUCCESS {
 		return [3]int{-1, -1, -1}, toError(err)
 	}
 	return [3]int{int(size[0]), int(size[1]), int(size[2])}, nil
 }
 
-func (k *Kernel) WorkGroupSize(device *Device) (int, error) {
+func (k Kernel) WorkGroupSize(device Device) (int, error) {
 	var size C.size_t
+	if k.clKernel == nil {
+		return int(-1), ErrInvalidKernel
+	}
 	err := C.clGetKernelWorkGroupInfo(k.clKernel, device.nullableId(), C.CL_KERNEL_WORK_GROUP_SIZE, C.size_t(unsafe.Sizeof(size)), unsafe.Pointer(&size), nil)
 	return int(size), toError(err)
 }
 
-func (k *Kernel) PreferredWorkGroupSizeMultiple(device *Device) (int, error) {
+func (k Kernel) PreferredWorkGroupSizeMultiple(device Device) (int, error) {
 	var size C.size_t
+	if k.clKernel == nil {
+		return int(-1), ErrInvalidKernel
+	}
 	err := C.clGetKernelWorkGroupInfo(k.clKernel, device.nullableId(), C.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, C.size_t(unsafe.Sizeof(size)), unsafe.Pointer(&size), nil)
 	return int(size), toError(err)
 }
 
-func (k *Kernel) CompileWorkGroupSize(device *Device) ([3]int, error) {
+func (k Kernel) CompileWorkGroupSize(device Device) ([3]int, error) {
 	var wgSize [3]C.size_t
+	if k.clKernel == nil {
+		return [3]int{-1, -1, -1}, ErrInvalidKernel
+	}
 	defer C.free(unsafe.Pointer(&wgSize))
 	if err := C.clGetKernelWorkGroupInfo(k.clKernel, device.nullableId(), C.CL_KERNEL_COMPILE_WORK_GROUP_SIZE, C.size_t(unsafe.Sizeof(wgSize)), unsafe.Pointer(&wgSize), nil); err != C.CL_SUCCESS {
 		return [3]int{-1, -1, -1}, toError(err)
@@ -258,56 +321,83 @@ func (k *Kernel) CompileWorkGroupSize(device *Device) ([3]int, error) {
 	return [3]int{int(wgSize[0]), int(wgSize[1]), int(wgSize[2])}, nil
 }
 
-func (k *Kernel) WorkGroupLocalMemSize(device *Device) (int, error) {
+func (k Kernel) WorkGroupLocalMemSize(device Device) (int, error) {
 	var size C.size_t
+	if k.clKernel == nil {
+		return int(-1), ErrInvalidKernel
+	}
 	err := C.clGetKernelWorkGroupInfo(k.clKernel, device.nullableId(), C.CL_KERNEL_LOCAL_MEM_SIZE, C.size_t(unsafe.Sizeof(size)), unsafe.Pointer(&size), nil)
 	return int(size), toError(err)
 }
 
-func (k *Kernel) WorkGroupPrivateMemSize(device *Device) (int, error) {
+func (k Kernel) WorkGroupPrivateMemSize(device Device) (int, error) {
 	var size C.size_t
+	if k.clKernel == nil {
+		return int(-1), ErrInvalidKernel
+	}
 	err := C.clGetKernelWorkGroupInfo(k.clKernel, device.nullableId(), C.CL_KERNEL_PRIVATE_MEM_SIZE, C.size_t(unsafe.Sizeof(size)), unsafe.Pointer(&size), nil)
 	return int(size), toError(err)
 }
 
-func (k *Kernel) NumArgs() (int, error) {
+func (k Kernel) NumArgs() (int, error) {
 	var num C.cl_uint
+	if k.clKernel == nil {
+		return int(-1), ErrInvalidKernel
+	}
 	err := C.clGetKernelInfo(k.clKernel, C.CL_KERNEL_NUM_ARGS, C.size_t(unsafe.Sizeof(num)), unsafe.Pointer(&num), nil)
 	return int(num), toError(err)
 }
 
-func (k *Kernel) ReferenceCount() (int, error) {
+func (k Kernel) ReferenceCount() (int, error) {
 	var num C.cl_uint
+	if k.clKernel == nil {
+		return int(-1), ErrInvalidKernel
+	}
 	err := C.clGetKernelInfo(k.clKernel, C.CL_KERNEL_REFERENCE_COUNT, C.size_t(unsafe.Sizeof(num)), unsafe.Pointer(&num), nil)
 	return int(num), toError(err)
 }
 
-func (k *Kernel) FunctionName() (string, error) {
+func (k Kernel) FunctionName() (string, error) {
 	var name C.char
+	if k.clKernel == nil {
+		return "", ErrInvalidKernel
+	}
 	err := C.clGetKernelInfo(k.clKernel, C.CL_KERNEL_FUNCTION_NAME, C.size_t(unsafe.Sizeof(name)), unsafe.Pointer(&name), nil)
 	return C.GoString(&name), toError(err)
 }
 
-func (k *Kernel) Attributes() (string, error) {
+func (k Kernel) Attributes() (string, error) {
 	var name C.char
+	if k.clKernel == nil {
+		return "", ErrInvalidKernel
+	}
 	err := C.clGetKernelInfo(k.clKernel, C.CL_KERNEL_ATTRIBUTES, C.size_t(unsafe.Sizeof(name)), unsafe.Pointer(&name), nil)
 	return C.GoString(&name), toError(err)
 }
 
-func (k *Kernel) Context() (*Context, error) {
+func (k Kernel) Context() (Context, error) {
 	var context C.cl_context
+	if k.clKernel == nil {
+		return EmptyContext, ErrInvalidKernel
+	}
 	err := C.clGetKernelInfo(k.clKernel, C.CL_KERNEL_CONTEXT, C.size_t(unsafe.Sizeof(context)), unsafe.Pointer(&context), nil)
-	return &Context{clContext: context, devices: nil}, toError(err)
+	return Context{clContext: context, devices: nil}, toError(err)
 }
 
-func (k *Kernel) Program() (*Program, error) {
+func (k Kernel) Program() (Program, error) {
 	var program C.cl_program
+	if k.clKernel == nil {
+		return EmptyProgram, ErrInvalidKernel
+	}
 	err := C.clGetKernelInfo(k.clKernel, C.CL_KERNEL_PROGRAM, C.size_t(unsafe.Sizeof(program)), unsafe.Pointer(&program), nil)
-	return &Program{clProgram: program, devices: nil}, toError(err)
+	return Program{clProgram: program, devices: nil}, toError(err)
 }
 
 // Enqueues a command to execute a kernel on a device.
-func (q *CommandQueue) EnqueueNDRangeKernel(kernel *Kernel, globalWorkOffset, globalWorkSize, localWorkSize []int, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueNDRangeKernel(kernel Kernel, globalWorkOffset, globalWorkSize, localWorkSize []int, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidKernel
+	}
 	workDim := len(globalWorkSize)
 	var globalWorkOffsetList []C.size_t
 	var globalWorkOffsetPtr *C.size_t
@@ -337,33 +427,54 @@ func (q *CommandQueue) EnqueueNDRangeKernel(kernel *Kernel, globalWorkOffset, gl
 		localWorkSizePtr = &localWorkSizeList[0]
 	}
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueNDRangeKernel(q.clQueue, kernel.clKernel, C.cl_uint(workDim), globalWorkOffsetPtr, globalWorkSizePtr, localWorkSizePtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueNDRangeKernel(q.clQueue, kernel.clKernel, C.cl_uint(workDim), globalWorkOffsetPtr, globalWorkSizePtr, localWorkSizePtr, (C.cl_uint)(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueues a command to execute a kernel on a device, except with globalWorkSize = localWorkSize = 1
 // and globalWorkOffset = 0
-func (q *CommandQueue) EnqueueTask(kernel *Kernel, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueTask(kernel Kernel, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
 	var event C.cl_event
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueTask(q.clQueue, kernel.clKernel, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.clEnqueueTask(q.clQueue, kernel.clKernel, (C.cl_uint)(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
 // Enqueues a native user function for execution on on a device. Need CL_EXEC_NATIVE_KERNEL capability to be present.
-func (q *CommandQueue) EnqueueNativeKernel(user_args unsafe.Pointer, num_user_args int, memObjects []*MemObject, ptr_memobj_in_args []unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
+func (q CommandQueue) EnqueueNativeKernel(user_args unsafe.Pointer, num_user_args int, memObjects []MemObject, ptr_memobj_in_args []unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	if q.clQueue == nil {
+		return EmptyEvent, ErrInvalidCommandQueue
+	}
 	var event C.cl_event
 	UserMemObjs := make([]C.cl_mem, len(memObjects))
 	for i, mb := range memObjects {
 		UserMemObjs[i] = mb.clMem
 	}
-	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.CLEnqueueNativeKernel(q.clQueue, user_args, C.size_t(num_user_args), C.cl_uint(len(memObjects)), &UserMemObjs[0], &ptr_memobj_in_args[0], C.cl_uint(WaitListLen), eventWaitListPtr, &event))
+	evtWL, WaitListLen := eventListPtr(eventWaitList)
+	WL := (*C.cl_event)(nil)
+	if WaitListLen > 0 {
+		WL = &evtWL[0]
+	}
+	err := toError(C.CLEnqueueNativeKernel(q.clQueue, user_args, C.size_t(num_user_args), C.cl_uint(len(memObjects)), &UserMemObjs[0], &ptr_memobj_in_args[0], C.cl_uint(WaitListLen), WL, &event))
 	return newEvent(event), err
 }
 
-func (p *Program) CreateKernelsInProgram() ([]*Kernel, error) {
+func (p Program) CreateKernelsInProgram() ([]Kernel, error) {
+	if p.clProgram == nil {
+		return nil, ErrInvalidProgram
+	}
 	var num_kerns C.cl_uint
 	err := C.clCreateKernelsInProgram(p.clProgram, 1, nil, &num_kerns)
 	if toError(err) != nil {
@@ -376,16 +487,16 @@ func (p *Program) CreateKernelsInProgram() ([]*Kernel, error) {
 		fmt.Printf("Error creating kernels \n")
 		return nil, toError(err)
 	}
-	returnKerns := make([]*Kernel, len(kernel_list))
+	returnKerns := make([]Kernel, len(kernel_list))
 	for i, kptr := range kernel_list {
-		testKern := &Kernel{clKernel: kptr, name: ""}
+		testKern := Kernel{clKernel: kptr, name: ""}
 		kname, errK := testKern.FunctionName()
 		if errK == nil {
 			returnKerns[i].clKernel = kptr
 			returnKerns[i].name = kname
 		} else {
 			fmt.Printf("Error getting information about kernel %d \n", i)
-			returnKerns[i] = nil
+			returnKerns[i] = EmptyKernel
 		}
 	}
 	return returnKerns, nil

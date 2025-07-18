@@ -24,9 +24,8 @@ const buf_max = 100 // maximum number of buffers to allocate (detect memory leak
 // Returns a GPU slice for temporary use. To be returned to the pool with Recycle
 func Buffer(nComp int, size [3]int) *data.Slice {
 	var err error
-	var tmpPtr *cl.MemObject
-	var event *cl.Event
-	var queue *cl.CommandQueue
+	var event cl.Event
+	var queue cl.CommandQueue
 
 	if Synchronous {
 		WaitCommandSequence()
@@ -49,13 +48,14 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 	evtWL := GetLatestCmd()
 
 	// allocate as much new memory as needed
-	evtList := []*cl.Event{}
+	evtList := []cl.Event{}
 	for i := nFromPool; i < nComp; i++ {
 		if len(buf_check) >= buf_max {
 			log.Panic("too many buffers in use, possible memory leak")
 		}
 
-		tmpPtr, err = ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
+		tmpPtr := new(cl.MemObject)
+		*tmpPtr, err = ClCtx.CreateEmptyBufferFloat32(cl.MemReadWrite, N)
 		if err != nil {
 			panic(err)
 		}
@@ -66,7 +66,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 			log.Panicf("failed to create command queue in buffer: %+v \n", err)
 		}
 		// execute
-		if event, err = queue.EnqueueFillBuffer(tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
+		if event, err = queue.EnqueueFillBuffer(*tmpPtr, unsafe.Pointer(&initVal), SIZEOF_FLOAT32, 0, bytes, evtWL); err != nil {
 			log.Panicf("CreateEmptyBuffer failed in buffer: %+v \n", err)
 		}
 
@@ -118,11 +118,11 @@ func Recycle(s *data.Slice) {
 func FreeBuffers() {
 	// synchronize to all events
 	WaitCommandSequence()
-	for _, size := range buf_pool {
-		for i := range size {
-			tmpObj := (*cl.MemObject)(size[i])
+	for _, ptr := range buf_pool {
+		for i := range ptr {
+			tmpObj := (*cl.MemObject)(ptr[i])
 			tmpObj.Release()
-			size[i] = nil
+			ptr[i] = nil
 		}
 	}
 	buf_pool = make(map[int][]unsafe.Pointer)

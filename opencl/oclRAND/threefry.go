@@ -17,7 +17,7 @@ type THREEFRY_status_array_ptr struct {
 	Status_size    int
 	GroupSize      int
 	GroupCount     int
-	ClCtx          *cl.Context
+	ClCtx          cl.Context
 }
 
 func NewTHREEFRYStatus() *THREEFRY_status_array_ptr {
@@ -27,11 +27,11 @@ func NewTHREEFRYStatus() *THREEFRY_status_array_ptr {
 	return q
 }
 
-func (p *THREEFRY_status_array_ptr) SetContext(context *cl.Context) {
+func (p *THREEFRY_status_array_ptr) SetContext(context cl.Context) {
 	p.ClCtx = context
 }
 
-func (p *THREEFRY_status_array_ptr) GetContext() *cl.Context {
+func (p *THREEFRY_status_array_ptr) GetContext() cl.Context {
 	return p.ClCtx
 }
 
@@ -43,26 +43,26 @@ func (p *THREEFRY_status_array_ptr) GetStatusSize() int {
 	return p.Status_size
 }
 
-func (p *THREEFRY_status_array_ptr) CreateStatusBuffer(context *cl.Context) {
+func (p *THREEFRY_status_array_ptr) CreateStatusBuffer(context cl.Context) {
 	p.SetContext(context)
 	if p.Status_size <= 0 {
 		log.Fatalln("Unable to create buffer for THREEFRY status array: number of PRNGs is less than 1")
 	}
 	var err error
 	var testVar uint32
-	p.Status_key, err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*4*p.Status_size, nil)
+	*(p.Status_key), err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*4*p.Status_size, nil)
 	if err != nil {
 		log.Fatalln("Unable to create buffer for THREEFRY status key array!")
 	}
-	p.Status_counter, err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*4*p.Status_size, nil)
+	*(p.Status_counter), err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*4*p.Status_size, nil)
 	if err != nil {
 		log.Fatalln("Unable to create buffer for THREEFRY status counter array!")
 	}
-	p.Status_result, err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*4*p.Status_size, nil)
+	*(p.Status_result), err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*4*p.Status_size, nil)
 	if err != nil {
 		log.Fatalln("Unable to create buffer for THREEFRY status result array!")
 	}
-	p.Status_tracker, err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*p.Status_size, nil)
+	*(p.Status_tracker), err = p.ClCtx.CreateBufferUnsafe(cl.MemReadWrite, int(unsafe.Sizeof(testVar))*p.Status_size, nil)
 	if err != nil {
 		log.Fatalln("Unable to create buffer for THREEFRY status tracker array!")
 	}

@@ -6,23 +6,23 @@ import (
 	cl "github.com/seeder-research/uMagNUS/cl"
 )
 
-var binariesMap map[string]*cl.ProgramBinaries
+var binariesMap map[string]cl.ProgramBinaries
 
-func compileProgram(ctx *cl.Context, devices []*cl.Device, source []string) (*cl.Program, error) {
+func compileProgram(ctx cl.Context, devices []cl.Device, source []string) (cl.Program, error) {
 	program, err := ctx.CreateProgramWithSource(source)
 	if err != nil {
 		fmt.Println("compileProgram: Unable to get create program in context!")
-		return nil, err
+		return cl.EmptyProgram, err
 	}
 	err = program.CompileProgram(devices, generateCompilerOpts(), nil)
 	return program, err
 }
 
-func linkProgram(ctx *cl.Context, d []*cl.Device, programs []*cl.Program) (*cl.Program, error) {
+func linkProgram(ctx cl.Context, d []cl.Device, programs []cl.Program) (cl.Program, error) {
 	return ctx.LinkProgram(programs, d, generateLinkerOpts())
 }
 
-func ShowBuildLog(p *cl.Program, d *cl.Device) {
+func ShowBuildLog(p cl.Program, d cl.Device) {
 	status, err := p.GetBuildStatus(d)
 	if err != nil {
 		fmt.Println("  ERROR: unable to get build status of program!")

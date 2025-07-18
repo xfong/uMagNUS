@@ -20,7 +20,7 @@ func Mul(dst, a, b *data.Slice) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_mul_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
 		// set event markers
@@ -45,7 +45,7 @@ func Div(dst, a, b *data.Slice) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_pointwise_div_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg, evtWL)
 		// set event markers
@@ -75,7 +75,7 @@ func Madd2(dst, src1, src2 *data.Slice, factor1, factor2 float32) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_madd2_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
@@ -104,7 +104,7 @@ func Madd3(dst, src1, src2, src3 *data.Slice, factor1, factor2, factor3 float32)
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_madd3_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
@@ -134,7 +134,7 @@ func Madd4(dst, src1, src2, src3, src4 *data.Slice, factor1, factor2, factor3, f
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_madd4_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
@@ -165,7 +165,7 @@ func Madd5(dst, src1, src2, src3, src4, src5 *data.Slice, factor1, factor2, fact
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_madd5_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
@@ -197,7 +197,7 @@ func Madd6(dst, src1, src2, src3, src4, src5, src6 *data.Slice, factor1, factor2
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_madd6_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
@@ -230,7 +230,7 @@ func Madd7(dst, src1, src2, src3, src4, src5, src6, src7 *data.Slice, factor1, f
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, nComp)
+	evtList := make([]cl.Event, nComp)
 	for c := 0; c < nComp; c++ {
 		event := k_madd7_async(dst.DevPtr(c),
 			src1.DevPtr(c), factor1,
