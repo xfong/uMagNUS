@@ -239,11 +239,9 @@ func UpdateLatestCmdList(evList []*cl.Event) {
 func ReleasePreviousDeviceCommandEvents() error {
 	var err error
 	for _, v := range ClLatestCmd {
-		if v != ClInitMarker {
-			if err = v.Release(); err != nil {
-				log.Printf("failed to release event in releasepreviousdevicecommandEvents: %+v \n", err)
-				return err
-			}
+		if err = v.Release(); err != nil {
+			log.Printf("failed to release event in releasepreviousdevicecommandEvents: %+v \n", err)
+			return err
 		}
 	}
 
@@ -259,7 +257,7 @@ func WaitLatestCmd() error {
 
 	// if ClLatestCmd has events, wait for them to complete
 	if len(ClLatestCmd) > 0 {
-		return cl.WaitForEvents(GetLatestCmd)
+		return cl.WaitForEvents(GetLatestCmd())
 	}
 
 	return nil
@@ -269,7 +267,7 @@ func WaitLatestCmd() error {
 func GetLatestCmd() []*cl.Event {
 	WL := []*cl.Event{}
 	if len(ClLatestCmd) > 0 {
-		for idx, _ := ClLatestCmd {
+		for idx, _ := range ClLatestCmd {
 			WL = append(WL, &ClLatestCmd[idx])
 		}
 	}
