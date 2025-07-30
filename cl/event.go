@@ -90,9 +90,12 @@ func retainEvent(ev *Event) error {
 // in turn refers to a fence command executing in an OpenGL command
 // stream. This provides another method of coordinating sharing of buffers
 // and images between OpenGL and OpenCL.
-func WaitForEvents(events []*Event) error {
+func WaitForEvents(events []Event) error {
 	eventWaitListPtr, WaitListLen := eventListPtr(events)
-	return toError(C.clWaitForEvents(C.cl_uint(WaitListLen), eventWaitListPtr))
+	if WaitListLen > 0 { // something to wait for
+		return toError(C.clWaitForEvents(C.cl_uint(WaitListLen), eventWaitListPtr))
+	}
+	return nil // otherwise, there is nothing to wait for
 }
 
 func newEvent(ev C.cl_event) *Event {
@@ -103,8 +106,8 @@ func newEvent(ev C.cl_event) *Event {
 	//return ev
 }
 
-func eventListPtr(el []*Event) (*C.cl_event, int) {
-	if el == nil {
+func eventListPtr(el []Event) (*C.cl_event, int) {
+	if len(el) < 1 {
 		return nil, 0
 	}
 	elist := []C.cl_event{}
@@ -230,13 +233,11 @@ func (e *Event) GetReferenceCount() (int, error) {
 	return 0, toError(C.CL_INVALID_EVENT)
 }
 
-func (ctx *Context) CreateUserEvent() (*Event, error) {
+func (ctx *Context) CreateUserEvent() (Event, error) {
 	var err C.cl_int
-	clEvent := C.clCreateUserEvent(ctx.clContext, &err)
-	if err != C.CL_SUCCESS {
-		return nil, toError(err)
-	}
-	return newEvent(clEvent), nil
+	var ev Event
+	ev.clEvent = C.clCreateUserEvent(ctx.clContext, &err)
+	return ev, toError(err)
 }
 
 func (ev *Event) SetUserEventStatus(status CommandExecStatus) error {
@@ -248,17 +249,17 @@ func (ev *Event) SetEventCallback(status CommandExecStatus, user_data unsafe.Poi
 }
 
 // A synchronization point that enqueues a barrier operation.
-func (q *CommandQueue) EnqueueBarrierWithWaitList(eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueBarrierWithWaitList(eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueBarrierWithWaitList(q.clQueue, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueBarrierWithWaitList(q.clQueue, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueues a marker command which waits for either a list of events to complete, or all previously enqueued commands to complete.
-func (q *CommandQueue) EnqueueMarkerWithWaitList(eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueMarkerWithWaitList(eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueMarkerWithWaitList(q.clQueue, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueMarkerWithWaitList(q.clQueue, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }

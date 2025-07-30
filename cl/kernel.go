@@ -307,7 +307,7 @@ func (k *Kernel) Program() (*Program, error) {
 }
 
 // Enqueues a command to execute a kernel on a device.
-func (q *CommandQueue) EnqueueNDRangeKernel(kernel *Kernel, globalWorkOffset, globalWorkSize, localWorkSize []int, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueNDRangeKernel(kernel *Kernel, globalWorkOffset, globalWorkSize, localWorkSize []int, eventWaitList []Event) (Event, error) {
 	workDim := len(globalWorkSize)
 	var globalWorkOffsetList []C.size_t
 	var globalWorkOffsetPtr *C.size_t
@@ -336,31 +336,31 @@ func (q *CommandQueue) EnqueueNDRangeKernel(kernel *Kernel, globalWorkOffset, gl
 		}
 		localWorkSizePtr = &localWorkSizeList[0]
 	}
-	var event C.cl_event
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueNDRangeKernel(q.clQueue, kernel.clKernel, C.cl_uint(workDim), globalWorkOffsetPtr, globalWorkSizePtr, localWorkSizePtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueNDRangeKernel(q.clQueue, kernel.clKernel, C.cl_uint(workDim), globalWorkOffsetPtr, globalWorkSizePtr, localWorkSizePtr, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueues a command to execute a kernel on a device, except with globalWorkSize = localWorkSize = 1
 // and globalWorkOffset = 0
-func (q *CommandQueue) EnqueueTask(kernel *Kernel, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueTask(kernel *Kernel, eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueTask(q.clQueue, kernel.clKernel, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueTask(q.clQueue, kernel.clKernel, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueues a native user function for execution on on a device. Need CL_EXEC_NATIVE_KERNEL capability to be present.
-func (q *CommandQueue) EnqueueNativeKernel(user_args unsafe.Pointer, num_user_args int, memObjects []*MemObject, ptr_memobj_in_args []unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueNativeKernel(user_args unsafe.Pointer, num_user_args int, memObjects []*MemObject, ptr_memobj_in_args []unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	var event Event
 	UserMemObjs := make([]C.cl_mem, len(memObjects))
 	for i, mb := range memObjects {
 		UserMemObjs[i] = mb.clMem
 	}
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.CLEnqueueNativeKernel(q.clQueue, user_args, C.size_t(num_user_args), C.cl_uint(len(memObjects)), &UserMemObjs[0], &ptr_memobj_in_args[0], C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.CLEnqueueNativeKernel(q.clQueue, user_args, C.size_t(num_user_args), C.cl_uint(len(memObjects)), &UserMemObjs[0], &ptr_memobj_in_args[0], C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 func (p *Program) CreateKernelsInProgram() ([]*Kernel, error) {

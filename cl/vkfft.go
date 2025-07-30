@@ -276,13 +276,13 @@ func (plan *VkfftPlan) Destroy() {
 	C.vkfftDestroyFFTPlan(plan.GetPlanPointer())
 }
 
-func (plan *VkfftPlan) GetQueueEvent() *Event {
-	ev := new(Event)
+func (plan *VkfftPlan) GetQueueEvent() Event {
+	var ev Event
 	ev.clEvent = C.vkfftGetPlanEvent(plan.GetPlanPointer())
 	return ev
 }
 
-func (plan *VkfftPlan) SetQueueEvent(e *Event) {
+func (plan *VkfftPlan) SetQueueEvent(e Event) {
 	C.vkfftSetPlanEvent(plan.GetPlanPointer(), e.clEvent)
 }
 

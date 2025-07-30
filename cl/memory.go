@@ -458,51 +458,44 @@ Based on these observations, we need to track only:
 
 /*
 // return event corresponding to latest command writing into memobject
-func (b *MemObject) GetWriteEvent() *Event {
+func (b *MemObject) GetWriteEvent() Event {
 	return newEvent(b.wrEv)
 }
 
 // set event corresponding to latest command writing into memobject
-func (b *MemObject) SetWriteEvent(ev *Event) {
-	if ev != nil {
-		b.wrEv = ev.clEvent
-	}
+func (b *MemObject) SetWriteEvent(ev Event) {
+	b.wrEv = ev.clEvent
 }
 
 // return marker tracking reads into memobject
-func (b *MemObject) GetReadMarker() *Event {
+func (b *MemObject) GetReadMarker() Event {
 	return newEvent(b.rdMkr)
 }
 
 // set marker tracking reads into memobject
-func (b *MemObject) SetReadMarker(ev *Event) {
-	if ev != nil {
-		b.rdMkr = ev.clEvent
-	}
+func (b *MemObject) SetReadMarker(ev Event) {
+	b.rdMkr = ev.clEvent
 }
 
 // return events for write dependence
-func (b *MemObject) GetWriteDependencies() []*Event {
-	tmpEv := []*cl.Event{}
+func (b *MemObject) GetWriteDependencies() []Event {
+	tmpEv := []Event{}
     tmpEv = append(tmpEv, b.GetReadMarker())
 	tmpEv = append(tmpEv, b.GetWriteEvent())
 	return tmpEv
 }
 
 // return events for read dependence
-func (b *MemObject) GetReadDependencies() []*Event {
-	tmpEv := []*cl.Event{}
+func (b *MemObject) GetReadDependencies() []Event {
+	tmpEv := []Event{}
 	tmpEv = append(tmpEv, b.GetWriteEvent())
 	return tmpEv
 }
 
 // function to update write dependence
-func (b *MemObject) SetWriteDependence(ev *Event) error {
+func (b *MemObject) SetWriteDependence(ev Event) error {
 	var err error
 
-	if ev == nil {
-		return nil
-	}
 	tmpEv := b.GetWriteEvent()
 	if err = tmpEv.Release(); err != nil {
 		fm.Printf("failed to release event in setwritedependence: %+v \n", err)
@@ -513,16 +506,16 @@ func (b *MemObject) SetWriteDependence(ev *Event) error {
 }
 
 // function to update read dependence
-func (b *MemObject) SetReadDependence(q *CommandQueue, ev *Event) error {
+func (b *MemObject) SetReadDependence(q *CommandQueue, ev Event) error {
 	var error
-	var tmpEv1 *Event
-	var tmpEv2 *Event
+	var tmpEv1 Event
+	var tmpEv2 Event
 
 	if q == nil || ev == nil {
 		return nil
 	}
 	tmpEv1 = b.GetReadMarker()
-	if tmpEv2, err = q.EnqueueMarkerWithWaitList([]*Event{ev, tmpEv1}); err != nil {
+	if tmpEv2, err = q.EnqueueMarkerWithWaitList([]Event{ev, tmpEv1}); err != nil {
 		fmt.Printf("failed to enqueue marker in setreaddependence: %+v \n", err)
 		return toError(err)
 	}
@@ -540,42 +533,39 @@ func (b *MemObject) SetReadDependence(q *CommandQueue, ev *Event) error {
 */
 
 // Enqueues a command to map a region of the buffer object given by buffer into the host address space and returns a pointer to this mapped region.
-func (q *CommandQueue) EnqueueMapBuffer(buffer *MemObject, blocking bool, flags MapFlag, offset, size int, eventWaitList []*Event) (*MappedMemObject, *Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueMapBuffer(buffer *MemObject, blocking bool, flags MapFlag, offset, size int, eventWaitList []Event) (*MappedMemObject, Event, error) {
+	var event Event
 	var err C.cl_int
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	ptr := C.clEnqueueMapBuffer(q.clQueue, buffer.clMem, clBool(blocking), flags.toCl(), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), eventWaitListPtr, &event, &err)
+	ptr := C.clEnqueueMapBuffer(q.clQueue, buffer.clMem, clBool(blocking), flags.toCl(), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent), &err)
 	if err != C.CL_SUCCESS {
-		return nil, nil, toError(err)
+		return nil, event, toError(err)
 	}
-	ev := newEvent(event)
 	if ptr == nil {
-		return nil, ev, ErrUnknown
+		return nil, event, ErrUnknown
 	}
-	return &MappedMemObject{ptr: ptr, size: size}, ev, nil
+	return &MappedMemObject{ptr: ptr, size: size}, event, nil
 }
 
 // Enqueues a command to unmap a previously mapped region of a memory object.
-func (q *CommandQueue) EnqueueUnmapMemObject(buffer *MemObject, mappedObj *MappedMemObject, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueUnmapMemObject(buffer *MemObject, mappedObj *MappedMemObject, eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	if err := C.clEnqueueUnmapMemObject(q.clQueue, buffer.clMem, mappedObj.ptr, C.cl_uint(WaitListLen), eventWaitListPtr, &event); err != C.CL_SUCCESS {
-		return nil, toError(err)
-	}
-	return newEvent(event), nil
+	err := C.clEnqueueUnmapMemObject(q.clQueue, buffer.clMem, mappedObj.ptr, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent))
+	return event, toError(err)
 }
 
 // Enqueues a command to copy a buffer object to another buffer object.
-func (q *CommandQueue) EnqueueCopyBuffer(srcBuffer, dstBuffer *MemObject, srcOffset, dstOffset, byteCount int, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueCopyBuffer(srcBuffer, dstBuffer *MemObject, srcOffset, dstOffset, byteCount int, eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueCopyBuffer(q.clQueue, srcBuffer.clMem, dstBuffer.clMem, C.size_t(srcOffset), C.size_t(dstOffset), C.size_t(byteCount), C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueCopyBuffer(q.clQueue, srcBuffer.clMem, dstBuffer.clMem, C.size_t(srcOffset), C.size_t(dstOffset), C.size_t(byteCount), C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueue command to write to a region in buffer object from host memory.
-func (q *CommandQueue) EnqueueCopyBufferRect(dst, src *MemObject, dst_origin, src_origin, region *Dim3, dst_row_pitch, dst_slice_pitch, src_row_pitch, src_slice_pitch int, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueCopyBufferRect(dst, src *MemObject, dst_origin, src_origin, region *Dim3, dst_row_pitch, dst_slice_pitch, src_row_pitch, src_slice_pitch int, eventWaitList []Event) (Event, error) {
+	var event Event
 	dst_offset := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&dst_offset))
 	dst_offset[0], dst_offset[1], dst_offset[2] = (C.size_t)(dst_origin.X), (C.size_t)(dst_origin.Y), (C.size_t)(dst_origin.Z)
@@ -588,33 +578,33 @@ func (q *CommandQueue) EnqueueCopyBufferRect(dst, src *MemObject, dst_origin, sr
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
 	err := toError(C.clEnqueueCopyBufferRect(q.clQueue, src.clMem, dst.clMem, &src_offset[0], &dst_offset[0], &mem_size[0],
 		(C.size_t)(src_row_pitch), (C.size_t)(src_slice_pitch), (C.size_t)(dst_row_pitch), (C.size_t)(dst_slice_pitch),
-		C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+		C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueue commands to write to a buffer object from host memory.
-func (q *CommandQueue) EnqueueWriteBuffer(buffer *MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueWriteBuffer(buffer *MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueWriteBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueWriteBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
-func (q *CommandQueue) EnqueueWriteBufferByte(buffer *MemObject, blocking bool, offset int, data []byte, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueWriteBufferByte(buffer *MemObject, blocking bool, offset int, data []byte, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueWriteBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
-func (q *CommandQueue) EnqueueWriteBufferFloat32(buffer *MemObject, blocking bool, offset int, data []float32, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueWriteBufferFloat32(buffer *MemObject, blocking bool, offset int, data []float32, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueWriteBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
 // Enqueue commands to write to a region in buffer object from host memory.
-func (q *CommandQueue) EnqueueWriteBufferRect(buffer *MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueWriteBufferRect(buffer *MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	var event Event
 	host_offset := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&host_offset))
 	host_offset[0], host_offset[1], host_offset[2] = (C.size_t)(host_origin.X), (C.size_t)(host_origin.Y), (C.size_t)(host_origin.Z)
@@ -627,33 +617,33 @@ func (q *CommandQueue) EnqueueWriteBufferRect(buffer *MemObject, blocking bool, 
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
 	err := toError(C.clEnqueueWriteBufferRect(q.clQueue, buffer.clMem, clBool(blocking), &buffer_offset[0], &host_offset[0], &mem_size[0],
 		(C.size_t)(buffer_row_pitch), (C.size_t)(buffer_slice_pitch), (C.size_t)(host_row_pitch), (C.size_t)(host_slice_pitch),
-		dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+		dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueue commands to read from a buffer object to host memory.
-func (q *CommandQueue) EnqueueReadBuffer(buffer *MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueReadBuffer(buffer *MemObject, blocking bool, offset, dataSize int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueReadBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueReadBuffer(q.clQueue, buffer.clMem, clBool(blocking), C.size_t(offset), C.size_t(dataSize), dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
-func (q *CommandQueue) EnqueueReadBufferByte(buffer *MemObject, blocking bool, offset int, data []byte, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueReadBufferByte(buffer *MemObject, blocking bool, offset int, data []byte, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueReadBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
-func (q *CommandQueue) EnqueueReadBufferFloat32(buffer *MemObject, blocking bool, offset int, data []float32, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueReadBufferFloat32(buffer *MemObject, blocking bool, offset int, data []float32, eventWaitList []Event) (Event, error) {
 	dataPtr := unsafe.Pointer(&data[0])
 	dataSize := int(unsafe.Sizeof(data[0])) * len(data)
 	return q.EnqueueReadBuffer(buffer, blocking, offset, dataSize, dataPtr, eventWaitList)
 }
 
 // Enqueue commands to read from a region in buffer object to host memory.
-func (q *CommandQueue) EnqueueReadBufferRect(buffer *MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueReadBufferRect(buffer *MemObject, blocking bool, buffer_origin, host_origin, region *Dim3, buffer_row_pitch, buffer_slice_pitch, host_row_pitch, host_slice_pitch int, dataPtr unsafe.Pointer, eventWaitList []Event) (Event, error) {
+	var event Event
 	host_offset := make([]C.size_t, 3)
 	defer C.free(unsafe.Pointer(&host_offset))
 	host_offset[0], host_offset[1], host_offset[2] = (C.size_t)(host_origin.X), (C.size_t)(host_origin.Y), (C.size_t)(host_origin.Z)
@@ -666,8 +656,8 @@ func (q *CommandQueue) EnqueueReadBufferRect(buffer *MemObject, blocking bool, b
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
 	err := toError(C.clEnqueueReadBufferRect(q.clQueue, buffer.clMem, clBool(blocking), &buffer_offset[0], &host_offset[0], &mem_size[0],
 		(C.size_t)(buffer_row_pitch), (C.size_t)(buffer_slice_pitch), (C.size_t)(host_row_pitch), (C.size_t)(host_slice_pitch),
-		dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+		dataPtr, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 func (ctx *Context) CreateBufferUnsafe(flags MemFlag, size int, dataPtr unsafe.Pointer) (*MemObject, error) {
@@ -728,37 +718,37 @@ func (mobj *MemObject) CreateSubBufferFloat64(flags MemFlag, origin, bSize int) 
 	return mobj.CreateSubBuffer(flags, 8*origin, 8*bSize)
 }
 
-func (q *CommandQueue) EnqueueFillBuffer(buffer *MemObject, pattern unsafe.Pointer, patternSize, offset, size int, eventWaitList []*Event) (*Event, error) {
-	var event C.cl_event
+func (q *CommandQueue) EnqueueFillBuffer(buffer *MemObject, pattern unsafe.Pointer, patternSize, offset, size int, eventWaitList []Event) (Event, error) {
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := toError(C.clEnqueueFillBuffer(q.clQueue, buffer.clMem, pattern, C.size_t(patternSize), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), eventWaitListPtr, &event))
-	return newEvent(event), err
+	err := toError(C.clEnqueueFillBuffer(q.clQueue, buffer.clMem, pattern, C.size_t(patternSize), C.size_t(offset), C.size_t(size), C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent)))
+	return event, err
 }
 
 // Enqueue a command to migrate memory objects into host
-func (q *CommandQueue) EnqueueMigrateMemObjectsToHost(memObjs []*MemObject, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueMigrateMemObjectsToHost(memObjs []*MemObject, eventWaitList []Event) (Event, error) {
 	ObjCount := len(memObjs)
 	mem_obj_list := make([]C.cl_mem, ObjCount)
 	defer C.free(unsafe.Pointer(&mem_obj_list))
 	for idx, obj := range memObjs {
 		mem_obj_list[idx] = obj.clMem
 	}
-	var event C.cl_event
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_HOST, C.cl_uint(WaitListLen), eventWaitListPtr, &event)
-	return newEvent(event), toError(err)
+	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_HOST, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent))
+	return event, toError(err)
 }
 
 // Enqueue a command to migrate memory objects into a command queue without their content
-func (q *CommandQueue) EnqueueMigrateMemObjectsIntoQueue(memObjs []*MemObject, eventWaitList []*Event) (*Event, error) {
+func (q *CommandQueue) EnqueueMigrateMemObjectsIntoQueue(memObjs []*MemObject, eventWaitList []Event) (Event, error) {
 	ObjCount := len(memObjs)
 	mem_obj_list := make([]C.cl_mem, ObjCount)
 	defer C.free(unsafe.Pointer(&mem_obj_list))
 	for idx, obj := range memObjs {
 		mem_obj_list[idx] = obj.clMem
 	}
-	var event C.cl_event
+	var event Event
 	eventWaitListPtr, WaitListLen := eventListPtr(eventWaitList)
-	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED, C.cl_uint(WaitListLen), eventWaitListPtr, &event)
-	return newEvent(event), toError(err)
+	err := C.clEnqueueMigrateMemObjects(q.clQueue, C.cl_uint(ObjCount), &mem_obj_list[0], C.CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED, C.cl_uint(WaitListLen), eventWaitListPtr, &(event.clEvent))
+	return event, toError(err)
 }
