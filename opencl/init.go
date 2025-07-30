@@ -26,15 +26,22 @@ var (
 	GPUList      []GPU                     // List of GPUs available
 	Synchronous  bool                      // for debug: synchronize command queue at every kernel launch
 	Debug        = false                   // for debug: synchronize command queue after every kernel launch
-	ClPlatforms  = []*cl.Platform{}        // list of platforms available
-	ClPlatform   = (*cl.Platform)(nil)     // platform the global OpenCL context is attached to
-	ClDevices    = []*cl.Device{}          // list of devices global OpenCL context may be associated with
-	ClDevice     = (*cl.Device)(nil)       // device associated with global OpenCL context
-	ClCtx        = (*cl.Context)(nil)      // global OpenCL context
+	clPlatforms_ = [] cl.Platform{}        // list of platforms available
+	ClPlatforms  = []*cl.Platform{}        // list of platforms available (pointer format)
+	clPlatform_  cl.Platform               // platform the global OpenCL context is attached to
+	ClPlatform   = (*cl.Platform)(nil)     // platform the global OpenCL context is attached to (pointer format)
+	clDevices_   = []cl.Device{}           // list of devices global OpenCL context may be associated with
+	ClDevices    = []*cl.Device{}          // list of devices global OpenCL context may be associated with (pointer format)
+	clDevice_    cl.Device                 // device associated with global OpenCL context
+	ClDevice     = (*cl.Device)(nil)       // device associated with global OpenCL context (pointer format)
+	clCtx_       cl.Context                // global OpenCL context
+	ClCtx        = (*cl.Context)(nil)      // global OpenCL context (pointer format)
 	//ClCmdQueue   = (*cl.CommandQueue)(nil) // command queues attached to global OpenCL context (needed??)
 	ClLatestCmd  = []cl.Event{}            // event for the latest device commands that was enqueued by a host function (should never be nil)
 	ClCmdSeqTail cl.Event                  // latest enqueued event in the order of enqueue (helpful for flushing)
-	ClProgram    = (*cl.Program)(nil)      // handle to program in the global OpenCL context
+	clProgram_    cl.Program               // handle to program in the global OpenCL context
+	ClProgram    = (*cl.Program)(nil)      // handle to program in the global OpenCL context (pointer format)
+	kernList_    = []cl.Kernel{}           // Store all compiled kernels
 	KernList     = map[string]*cl.Kernel{} // Store pointers to all compiled kernels
 	initialized  = false                   // Initial state defaults to false
 	ClCUnits     int                       // Get number of compute units available
@@ -112,10 +119,26 @@ func Init(gpu int) {
 	// Initialize the library with the selected opencl device
 	GPUList = tmpGpuList
 	ClDevices = tmpClDevices
+	for _, dev := range ClDevices {
+		clDevices_ = append(clDevices_, *dev)
+	}
+	for idx, _ := range clDevices_ {
+		ClDevices[idx] = &clDevices_[idx]
+	}
 	ClPlatforms = tmpClPlatforms
+	for _, plat := range ClPlatforms {
+		clPlatforms_ = append(clPlatforms_, *plat)
+	}
+	for idx, _ := range clPlatforms_ {
+		ClPlatforms[idx] = &clPlatforms_[idx]
+	}
 	selectedGPU := GPUList[selection]
 	ClPlatform = selectedGPU.getGpuPlatform()
+	clPlatform_ = *ClPlatform
+	ClPlatform = &clPlatform_
 	ClDevice = selectedGPU.getGpuDevice()
+	clDevice_ = *ClDevice
+	ClDevice = &clDevice_
 
 	// Output information about platform of selected opencl device
 	fmt.Printf("// GPU: %d\n", selection)
@@ -140,7 +163,8 @@ func Init(gpu int) {
 	}
 
 	// update global variable
-	ClCtx = context
+	clCtx_ = *context
+	ClCtx = &clCtx_
 
 	// Create opencl command queues on selected device (needed??)
 	//var queue *cl.CommandQueue
@@ -198,14 +222,18 @@ func Init(gpu int) {
 	}
 
 	// update global variables
-	ClProgram = program
+	clProgram_ = *program
+	ClProgram = &clProgram_
 
 	// Attempt to build list of kernels in opencl program
 	completed := bool(true)
 	if kernelsString, errK := program.GetKernelNames(); errK == nil {
 		kernelNamesArray := strings.Split(kernelsString, ";")
 		for _, kernname := range kernelNamesArray {
-			KernList[kernname], err = program.CreateKernel(kernname)
+			var kernel *cl.Kernel
+			kernel, err = program.CreateKernel(kernname)
+			kernList_ = append(kernList_, *kernel)
+			KernList[kernname] = &kernList_[len(kernList_) - 1]
 			if err != nil {
 				fmt.Printf("CreateKernel failed: %+v \n", err)
 				completed = false
