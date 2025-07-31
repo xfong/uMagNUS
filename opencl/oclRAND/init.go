@@ -24,9 +24,9 @@ func Init(ctx *cl.Context, dev *cl.Device, synch bool, kList map[string]*cl.Kern
 	KernList = kList
 }
 
-func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *cl.Event {
+func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl.Event {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	if KernList[kernname] == nil {

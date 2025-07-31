@@ -32,7 +32,7 @@ func newFFT3DR2C(Nx, Ny, Nz int) fft3DR2CPlan {
 // src and dst are 3D arrays stored 1D arrays.
 func (p *fft3DR2CPlan) ExecAsync(src, dst *data.Slice) error {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	if Synchronous {

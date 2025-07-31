@@ -25,7 +25,7 @@ const buf_max = 100 // maximum number of buffers to allocate (detect memory leak
 func Buffer(nComp int, size [3]int) *data.Slice {
 	var err error
 	var tmpPtr *cl.MemObject
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	if Synchronous {
@@ -49,7 +49,7 @@ func Buffer(nComp int, size [3]int) *data.Slice {
 	evtWL := GetLatestCmd()
 
 	// allocate as much new memory as needed
-	evtList := []*cl.Event{}
+	evtList := []cl.Event{}
 	for i := nFromPool; i < nComp; i++ {
 		if len(buf_check) >= buf_max {
 			log.Panic("too many buffers in use, possible memory leak")

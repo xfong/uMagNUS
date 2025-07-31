@@ -67,7 +67,7 @@ func Dot(a, b *data.Slice) float32 {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, numComp)
+	evtList := make([]cl.Event, numComp)
 	for c := 0; c < numComp; c++ {
 		event := k_reducedot_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
 			a.Len(), reducecfg, evtWL) // all components add to out
@@ -134,7 +134,7 @@ func MaxDiff(a, b *data.Slice) []float32 {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, numComp)
+	evtList := make([]cl.Event, numComp)
 	for c := 0; c < numComp; c++ {
 		event := k_reducemaxdiff_async(a.DevPtr(c), b.DevPtr(c), out[c], 0,
 			a.Len(), reducecfg, evtWL)
@@ -217,7 +217,7 @@ var reduceBuffers chan (*cl.MemObject) // pool of 1-float OpenCL buffers for red
 // initialized to initVal
 func reduceBuf(initVal float32) unsafe.Pointer {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	if reduceBuffers == nil {

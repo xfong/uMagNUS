@@ -21,13 +21,13 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 	var fillWait []*cl.Event
 	var tmp_buf *cl.MemObject
 	var queue *cl.CommandQueue
-	var event *cl.Event
+	var event cl.Event
 
 	length := prod(size)
 	bytes := length * SIZEOF_FLOAT32
 	ptrs := make([]unsafe.Pointer, nComp)
 	initVal := float32(0.0)
-	fillWait = []*cl.Event{}
+	fillWait = []cl.Event{}
 
 	// sequence command according to queue
 	evtWL := GetLatestCmd()
@@ -89,7 +89,7 @@ func memFree(ptr unsafe.Pointer) {
 
 func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	// debug
@@ -136,7 +136,7 @@ func MemCpyDtoH(dst, src unsafe.Pointer, bytes int) {
 
 func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	// debug
@@ -176,7 +176,7 @@ func MemCpyHtoD(dst, src unsafe.Pointer, bytes int) {
 
 func MemCpy(dst, src unsafe.Pointer, bytes int) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	// debug
@@ -219,7 +219,7 @@ func MemCpy(dst, src unsafe.Pointer, bytes int) {
 // To be carefully used on unified slice (need sync)
 func Memset(s *data.Slice, val ...float32) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	// debug
@@ -233,7 +233,7 @@ func Memset(s *data.Slice, val ...float32) {
 	// sequence command according to queue
 	evtWL := GetLatestCmd()
 
-	evtList := []*cl.Event{}
+	evtList := []cl.Event{}
 	for c, v := range val {
 
 		// create command queue and execute
@@ -279,7 +279,7 @@ func SetCell(s *data.Slice, comp int, ix, iy, iz int, value float32) {
 
 func SetElem(s *data.Slice, comp int, index int, value float32) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	f := value
@@ -320,7 +320,7 @@ func SetElem(s *data.Slice, comp int, index int, value float32) {
 
 func GetElem(s *data.Slice, comp int, index int) float32 {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 	var f float32
 

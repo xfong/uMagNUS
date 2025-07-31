@@ -106,7 +106,7 @@ func (c *DemagConvolution) is2D() bool {
 // zero 1-component slice
 func zero1_async(dst *data.Slice) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	val := float32(0.0)

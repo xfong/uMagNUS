@@ -9,11 +9,11 @@ import (
 	"math/rand"
 )
 
-func (p *THREEFRY_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) Init(seed uint64, events []cl.Event) cl.Event {
 	var err error
 	var seed_buf *cl.MemObject
-	var seed_event *cl.Event
-	var event *cl.Event
+	var seed_event cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	// Generate random seed array to seed the PRNG
@@ -58,10 +58,10 @@ func (p *THREEFRY_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Ev
 	// seed the RNG
 	event = k_threefry_seed_async(unsafe.Pointer(p.Status_key), unsafe.Pointer(p.Status_counter),
 		unsafe.Pointer(p.Status_result), unsafe.Pointer(p.Status_tracker), unsafe.Pointer(seed_buf),
-		&config{[]int{totalCount}, []int{p.GetGroupSize()}}, []*cl.Event{seed_event})
+		&config{[]int{totalCount}, []int{p.GetGroupSize()}}, []cl.Event{seed_event})
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			log.Printf("failed to wait for last marker in threefry.init: %+v \n", err)
 		}
 		timer.Stop("threefry_init")
@@ -72,7 +72,7 @@ func (p *THREEFRY_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Ev
 	return event
 }
 
-func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, events []cl.Event) cl.Event {
 	var err error
 
 	if p.Ini == false {
@@ -92,7 +92,7 @@ func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_
 		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			log.Printf("failed to wait for last marker at end of threefry.generateuniform: %+v \n", err)
 		}
 		timer.Stop("threefry_uniform")
@@ -101,7 +101,7 @@ func (p *THREEFRY_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_
 	return event
 }
 
-func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
+func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, events []cl.Event) cl.Event {
 	var err error
 
 	if p.Ini == false {
@@ -121,7 +121,7 @@ func (p *THREEFRY_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_s
 		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			log.Printf("failed to wait for event in threefry.generatenormal: %+v \n", err)
 		}
 		timer.Stop("threefry_normal")

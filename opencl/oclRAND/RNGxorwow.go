@@ -8,11 +8,11 @@ import (
 	timer "github.com/seeder-research/uMagNUS/timer"
 )
 
-func (p *XORWOW_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) Init(seed uint64, events []cl.Event) cl.Event {
 	var err error
 	var queue *cl.CommandQueue
 	var jump_mat *cl.MemObject
-	var event *cl.Event
+	var event cl.Event
 
 	context := p.GetContext()
 	totalCount := p.GetStatusSize()
@@ -33,7 +33,7 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Even
 	}
 
 	//    ....Copying jump matrices from host side to device side
-	jump_events := make([]*cl.Event, int(XORWOW_JUMP_MATRICES))
+	jump_events := make([]cl.Event, int(XORWOW_JUMP_MATRICES))
 	for idx := 0; idx < int(XORWOW_JUMP_MATRICES); idx++ {
 		// create command queue and execute
 		if queue, err = CreateCommandQueue(); err != nil {
@@ -50,15 +50,16 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Even
 	}
 
 	// Seed the RNG
-	var seed_events []*cl.Event
-	seed_events = jump_events
-	if events != nil {
-		seed_events = append(events)
+	var seed_events []cl.Event
+	if len(events) > 0 {
+		seed_events = append(events, jump_events...)
+	} else {
+		seed_events = jump_events
 	}
 	event = k_xorwow_seed_async(unsafe.Pointer(p.Status_buf), unsafe.Pointer(jump_mat), seed, &config{[]int{totalCount}, []int{p.GetGroupSize()}}, seed_events)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			log.Printf("failed to wait for last marker in xorwow.init: %+v \n", err)
 		}
 		timer.Stop("xorwow_init")
@@ -69,9 +70,9 @@ func (p *XORWOW_status_array_ptr) Init(seed uint64, events []*cl.Event) *cl.Even
 	return event
 }
 
-func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_size int, events []cl.Event) cl.Event {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 
 	if p.Ini == false {
 		log.Fatalln("Generator has not been initialized!")
@@ -88,7 +89,7 @@ func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_si
 		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			log.Printf("failed to wait for last marker in xorwow.generateuniform: %+v \n", err)
 		}
 		timer.Stop("xorwow_uniform")
@@ -97,9 +98,9 @@ func (p *XORWOW_status_array_ptr) GenerateUniform(d_data unsafe.Pointer, data_si
 	return event
 }
 
-func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, events []*cl.Event) *cl.Event {
+func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_size int, events []cl.Event) cl.Event {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 
 	if p.Ini == false {
 		log.Fatalln("Generator has not been initialized!")
@@ -117,7 +118,7 @@ func (p *XORWOW_status_array_ptr) GenerateNormal(d_data unsafe.Pointer, data_siz
 		&config{[]int{p.GetStatusSize()}, []int{p.GetGroupSize()}}, events)
 
 	if Synchronous { // debug
-		if err = cl.WaitForEvents([]*cl.Event{event}); err != nil {
+		if err = cl.WaitForEvents([]cl.Event{event}); err != nil {
 			log.Printf("failed to wait for last marker in xorwow.generatenormal: %+v \n", err)
 		}
 		timer.Stop("xorwow_normal")

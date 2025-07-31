@@ -21,7 +21,7 @@ type Bytes struct {
 // initialised to zeros.
 func NewBytes(Len int) *Bytes {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	ptr, err := ClCtx.CreateEmptyBuffer(cl.MemReadWrite, Len)
@@ -86,7 +86,7 @@ func (src *Bytes) Download(dst []byte) {
 // data.Index can be used to find the index for x,y,z.
 func (dst *Bytes) Set(index int, value byte) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	if index < 0 || index >= dst.Len {
@@ -134,7 +134,7 @@ func (dst *Bytes) Set(index int, value byte) {
 //	list of events rather than an individual event
 func (src *Bytes) Get(index int) byte {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	if index < 0 || index >= src.Len {

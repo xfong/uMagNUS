@@ -13,9 +13,9 @@ import (
 )
 
 type Prng_ interface {
-	Init(uint64, []*cl.Event) *cl.Event
-	GenerateUniform(unsafe.Pointer, int, []*cl.Event) *cl.Event
-	GenerateNormal(unsafe.Pointer, int, []*cl.Event) *cl.Event
+	Init(uint64, []cl.Event) cl.Event
+	GenerateUniform(unsafe.Pointer, int, []cl.Event) cl.Event
+	GenerateNormal(unsafe.Pointer, int, []cl.Event) cl.Event
 	GetGroupSize() int
 	GetGroupCount() int
 	RecommendSize() int
@@ -67,7 +67,7 @@ func (g *Generator) CreatePNG() {
 }
 
 func (g *Generator) Init(seed *uint64) {
-	var event *cl.Event
+	var event cl.Event
 
 	g.buf_size = g.PRNG.RecommendSize()
 
@@ -104,7 +104,7 @@ func (g *Generator) Init(seed *uint64) {
 
 func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	demand, demand_offset := d_size, 0
@@ -177,7 +177,7 @@ func (g *Generator) Uniform(data unsafe.Pointer, d_size int) {
 
 func (g *Generator) Normal(data unsafe.Pointer, d_size int) {
 	var err error
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	demand, demand_offset := d_size, 0

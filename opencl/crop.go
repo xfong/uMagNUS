@@ -22,7 +22,7 @@ func Crop(dst, src *data.Slice, offX, offY, offZ int) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, 3)
+	evtList := make([]cl.Event, 3)
 	for c := 0; c < dst.NComp(); c++ {
 		event := k_crop_async(dst.DevPtr(c), D[X], D[Y], D[Z],
 			src.DevPtr(c), S[X], S[Y], S[Z],

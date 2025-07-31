@@ -20,7 +20,7 @@ func Divide(dst, a, b *data.Slice) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, 3)
+	evtList := make([]cl.Event, 3)
 	for c := 0; c < nComp; c++ {
 		event := k_divide_async(dst.DevPtr(c), a.DevPtr(c), b.DevPtr(c), N, cfg,
 			evtWL)

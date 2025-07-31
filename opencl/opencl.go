@@ -18,10 +18,10 @@ const (
 )
 
 // Assumes kernel arguments set prior to launch
-func LaunchKernel(kernname string, gridDim, workDim []int, events []*cl.Event) *cl.Event {
+func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl.Event {
 	var err error
 	var queue *cl.CommandQueue
-	var KernEvent *cl.Event
+	var KernEvent cl.Event
 
 	if KernList[kernname] == nil { // get kernel object
 		util.Fatal("Kernel " + kernname + " does not exist!")
@@ -99,7 +99,7 @@ func CreateCommandQueue() (*cl.CommandQueue, error) {
 func InitMarkers() {
 	var err error
 	var queue *cl.CommandQueue
-	var marker *cl.Event
+	var marker cl.Event
 
 	if queue, err = CreateCommandQueue(); err != nil { // get queue
 		log.Panicf("failed to create command queue in InitMarkers: %+v \n", err)
@@ -110,31 +110,34 @@ func InitMarkers() {
 	if marker, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
 		log.Panicf("failed to enqueue marker (clcmdseqtail) in InitMarkers: %+v \n", err)
 	}
-	ClCmdSeqTail = *marker
-
-	// enqueue a marker with no dependencies that completes when executed
-	if marker, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
-		log.Panicf("failed to enqueue marker in InitMarkers: %+v \n", err)
-	}
+	// update
+	ClCmdSeqTail = marker
 
 	if err = queue.Release(); err != nil { // implicit flush
 		log.Panicf("failed to release queue in InitMarkers: %+v \n", err)
 	}
 
+	// enqueue a marker with no dependencies that completes when executed
+	if marker, err = queue.EnqueueMarkerWithWaitList(nil); err != nil {
+		log.Panicf("failed to enqueue marker in InitMarkers: %+v \n", err)
+	}
 	// update
-	ClLatestCmd = []cl.Event{*marker}
+	ClLatestCmd = []cl.Event{marker}
+
+	if err = queue.Release(); err != nil { // implicit flush
+		log.Panicf("failed to release queue in InitMarkers: %+v \n", err)
+	}
 
 }
 
 // update ClCmdSeqTail to track event for an enqueued command that
 // has been enqueued
-func InsertEventToCmdSeqTail(ev *cl.Event) {
+func InsertEventToCmdSeqTail(ev cl.Event) {
 	var err error
 	var queue *cl.CommandQueue
-	var marker *cl.Event
+	var marker cl.Event
 
 	log.Println("attempting to update event to cmd seq...")
-	marker = new(cl.Event)
 	queue = nil
 	if queue, err = CreateCommandQueue(); err != nil { // create queue
 		log.Fatalf("failed to create command queue in addeventtosequence: %+v \n", err)
@@ -143,11 +146,10 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 
 	// generate the new event marker
 	log.Printf("input: %+v \n", ev)
-	*marker = ClCmdSeqTail
-	tmpMarker, err2 := queue.EnqueueMarkerWithWaitList([]*cl.Event{marker, ev})
-	log.Printf("previous tail: %+v \n", marker)
-	log.Printf("current tail: %+v \n", tmpMarker)
-	if err2 != nil {
+	marker, err = queue.EnqueueMarkerWithWaitList([]cl.Event{ClCmdSeqTail, ev})
+	log.Printf("previous tail: %+v \n", ClCmdSeqTail)
+	log.Printf("current tail: %+v \n", marker)
+	if err != nil {
 		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err2)
 		return
 	}
@@ -158,13 +160,13 @@ func InsertEventToCmdSeqTail(ev *cl.Event) {
 	}
 
 	// release the old marker to the memory will be deallocated before updating the tracker
-	ClCmdSeqTail = *tmpMarker
-	log.Printf("new tail: %+v \n", ClCmdSeqTail)
-	log.Printf("releasing: %+v \n", marker)
-	if err = marker.Release(); err != nil {
+	log.Printf("releasing: %+v \n", ClCmdSeqTail)
+	log.Printf("new tail: %+v \n", marker)
+	if err = ClCmdSeqTail.Release(); err != nil {
 		log.Fatalf("failed to release marker event in inserteventtocmdseqtail: %+v \n", err)
 		return
 	}
+	ClCmdSeqTail = marker
 
 }
 
@@ -180,17 +182,12 @@ func WaitCommandSequence() {
 
 // wait for event in ClCmdSeqTail
 func WaitCmdSeqTail() error {
-	return cl.WaitForEvents([]*cl.Event{&ClCmdSeqTail})
+	return cl.WaitForEvents([]cl.Event{ClCmdSeqTail})
 }
 
 // update latest device command that was enqueued by a host function
-func UpdateLatestCmdSingle(ev *cl.Event) {
+func UpdateLatestCmdSingle(ev cl.Event) {
 	var err error
-
-	if ev == nil {
-		fmt.Printf("ev cannot be nil in updatelatestcmdsingle! \n")
-		return
-	}
 
 	// release all previous events for commands that were enqueued
 	// to deallocate memory (no longer need to track them within
@@ -200,23 +197,18 @@ func UpdateLatestCmdSingle(ev *cl.Event) {
 	}
 
 	// upate tracker
-	ClLatestCmd = []cl.Event{*ev}
+	ClLatestCmd = []cl.Event{ev}
 }
 
 // update latest list of device commands that was enqueued by a host function
-func UpdateLatestCmdList(evList []*cl.Event) {
+func UpdateLatestCmdList(evList []cl.Event) {
 	var err error
 
 	// error check input to ensure it is neither a nil pointer nor
 	// an empty list
-	if evList == nil {
-		fmt.Printf("evList cannot be nil in updatelatestcmdlist! \n")
+	if len(evList) == 0 {
+		fmt.Printf("evList cannot be empty in updatelatestcmdlist! \n")
 		return
-	} else {
-		if len(evList) == 0 {
-			fmt.Printf("evList cannot be empty in updatelatestcmdlist! \n")
-			return
-		}
 	}
 
 	// release all previous events for commands that were enqueued
@@ -227,10 +219,7 @@ func UpdateLatestCmdList(evList []*cl.Event) {
 	}
 
 	// update tracker
-	ClLatestCmd = []cl.Event{}
-	for _, ev := range evList {
-		ClLatestCmd = append(ClLatestCmd, *ev)
-	}
+	ClLatestCmd = evList
 }
 
 // release all previous events for commands that were enqueued
@@ -250,11 +239,6 @@ func ReleasePreviousDeviceCommandEvents() error {
 
 // wait for latest device commands enqueued by a host function
 func WaitLatestCmd() error {
-	// error check
-	if ClLatestCmd == nil {
-		fmt.Printf("ClLatestCmd cannot be nil in waitlastevent! \n")
-	}
-
 	// if ClLatestCmd has events, wait for them to complete
 	if len(ClLatestCmd) > 0 {
 		return cl.WaitForEvents(GetLatestCmd())
@@ -264,12 +248,10 @@ func WaitLatestCmd() error {
 }
 
 // get the latest device commands enqueued by a host function
-func GetLatestCmd() []*cl.Event {
-	WL := []*cl.Event{}
+func GetLatestCmd() []cl.Event {
+	WL := []cl.Event{}
 	if len(ClLatestCmd) > 0 {
-		for idx, _ := range ClLatestCmd {
-			WL = append(WL, &ClLatestCmd[idx])
-		}
+		WL = ClLatestCmd
 	}
 	return WL
 }
