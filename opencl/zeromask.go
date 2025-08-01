@@ -17,7 +17,7 @@ func ZeroMask(dst *data.Slice, mask LUTPtr, regions *Bytes) {
 	evtWL := GetLatestCmd()
 
 	// execute
-	evtList := make([]*cl.Event, dst.NComp())
+	evtList := make([]cl.Event, dst.NComp())
 	for c := 0; c < dst.NComp(); c++ {
 		event := k_zeromask_async(dst.DevPtr(c), unsafe.Pointer(mask),
 			regions.Ptr, N,
