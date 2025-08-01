@@ -31,7 +31,7 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl
 
 	if KernList[kernname] == nil {
 		log.Panic("Kernel " + kernname + " does not exist!")
-		return nil
+		return event
 	}
 
 	// get command queue
@@ -42,7 +42,7 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl
 	// execute
 	if event, err = queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events); err != nil {
 		log.Fatal(err)
-		return nil
+		return event
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush
