@@ -18,7 +18,7 @@ func NewSlice(nComp int, size [3]int) *data.Slice {
 
 func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 	var err error
-	var fillWait []*cl.Event
+	var fillWait []cl.Event
 	var tmp_buf *cl.MemObject
 	var queue *cl.CommandQueue
 	var event cl.Event
@@ -35,7 +35,6 @@ func newSlice(nComp int, size [3]int, memType int8) *data.Slice {
 	for c := range ptrs {
 		tmp_buf = nil
 		queue = nil
-		event = nil
 		tmp_buf, err = ClCtx.CreateEmptyBuffer(cl.MemReadWrite, bytes)
 		if err != nil {
 			fmt.Printf("CreateEmptyBuffer failed in newSlice: %+v \n", err)

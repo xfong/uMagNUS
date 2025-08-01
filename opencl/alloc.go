@@ -62,7 +62,7 @@ func MemAllocFloat32(N int) *cl.MemObject {
 }
 
 func MemAllocFloat64(N int) *cl.MemObject {
-	var event *cl.Event
+	var event cl.Event
 	var queue *cl.CommandQueue
 
 	initVal := float32(0.0)

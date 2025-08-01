@@ -25,7 +25,7 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl
 
 	if KernList[kernname] == nil { // get kernel object
 		util.Fatal("Kernel " + kernname + " does not exist!")
-		return nil
+		return KernEvent
 	}
 
 	if Debug { // debug
@@ -34,13 +34,13 @@ func LaunchKernel(kernname string, gridDim, workDim []int, events []cl.Event) cl
 
 	if queue, err = CreateCommandQueue(); err != nil { // get command queue
 		util.Fatal(err)
-		return nil
+		return KernEvent
 	}
 
 	// execute
 	if KernEvent, err = queue.EnqueueNDRangeKernel(KernList[kernname], nil, gridDim, workDim, events); err != nil {
 		util.Fatal(err)
-		return nil
+		return KernEvent
 	}
 
 	if err = queue.Release(); err != nil { // implicit flush to device
@@ -150,7 +150,7 @@ func InsertEventToCmdSeqTail(ev cl.Event) {
 	log.Printf("previous tail: %+v \n", ClCmdSeqTail)
 	log.Printf("current tail: %+v \n", marker)
 	if err != nil {
-		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err2)
+		log.Fatalf("failed to enqueue marker in inserteventtocmdseqtail: %+v \n", err)
 		return
 	}
 
