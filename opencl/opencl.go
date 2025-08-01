@@ -113,8 +113,8 @@ func InitMarkers() {
 	// update
 	ClCmdSeqTail = marker
 
-	if err = queue.Release(); err != nil { // implicit flush
-		log.Panicf("failed to release queue in InitMarkers: %+v \n", err)
+	if err = queue.Flush(); err != nil { // implicit flush
+		log.Panicf("failed to flush queue in InitMarkers: %+v \n", err)
 	}
 
 	// enqueue a marker with no dependencies that completes when executed
