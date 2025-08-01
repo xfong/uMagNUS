@@ -112,9 +112,7 @@ func eventListPtr(el []Event) (*C.cl_event, int) {
 	}
 	elist := []C.cl_event{}
 	for _, e := range el {
-		if e != nil {
-			elist = append(elist, e.clEvent)
-		}
+		elist = append(elist, e.clEvent)
 	}
 	if len(elist) == 0 {
 		return nil, 0
