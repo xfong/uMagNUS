@@ -28120,8 +28120,10 @@ static inline VkFFTResult VkFFT_transferDataFromCPU(VkFFTApplication* app, void*
 	}
 	res = clReleaseCommandQueue(commandQueue); // implicit flush
 	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
-	res = clReleaseEvent(app->configuration.queueEvent);
-	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	if (app->configuration.queueEvent != NULL) {
+		res = clReleaseEvent(app->configuration.queueEvent);
+		if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	}
 	app->configuration.queueEvent = ev;
 #elif(VKFFT_BACKEND==4)
 	ze_result_t res = ZE_RESULT_SUCCESS;
@@ -28241,8 +28243,10 @@ static inline VkFFTResult VkFFT_transferDataToCPU(VkFFTApplication* app, void* c
 	}
 	res = clReleaseCommandQueue(commandQueue); // implicit flush
 	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
-	res = clReleaseEvent(app->configuration.queueEvent);
-	if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	if (app->configuration.queueEvent != NULL) {
+		res = clReleaseEvent(app->configuration.queueEvent);
+		if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+	}
 	app->configuration.queueEvent = ev;
 #elif(VKFFT_BACKEND==4)
 	ze_result_t res = ZE_RESULT_SUCCESS;
@@ -40905,23 +40909,26 @@ static inline VkFFTResult dispatchEnhanced(VkFFTApplication* app, VkFFTAxis* axi
 				size_t local_work_size[3] = { (size_t)axis->specializationConstants.localSize[0], (size_t)axis->specializationConstants.localSize[1],(size_t)axis->specializationConstants.localSize[2] };
 				size_t global_work_size[3] = { (size_t)dispatchSize[0] * local_work_size[0] , (size_t)dispatchSize[1] * local_work_size[1] ,(size_t)dispatchSize[2] * local_work_size[2] };
 				cl_event ev;
+				cl_command_queue commandQueue = clCreateCommandQueue(app->configuration.context[0], app->configuration.device[0], 0, &res);
 				if (app->configuration.queueEvent == NULL) {
-					result = clEnqueueNDRangeKernel(app->configuration.commandQueue[0], axis->kernel, 3, 0, global_work_size, local_work_size, 0, NULL, &ev);
+					result = clEnqueueNDRangeKernel(commandQueue, axis->kernel, 3, 0, global_work_size, local_work_size, 0, NULL, &ev);
 				} else {
-					result = clEnqueueNDRangeKernel(app->configuration.commandQueue[0], axis->kernel, 3, 0, global_work_size, local_work_size, 1, &app->configuration.queueEvent, &ev);
+					result = clEnqueueNDRangeKernel(commandQueue, axis->kernel, 3, 0, global_work_size, local_work_size, 1, &app->configuration.queueEvent, &ev);
 				}
 				//printf("%" PRIu64 " %" PRIu64 " %" PRIu64 " - %" PRIu64 " %" PRIu64 " %" PRIu64 "\n", maxBlockSize[0], maxBlockSize[1], maxBlockSize[2], axis->specializationConstants.localSize[0], axis->specializationConstants.localSize[1], axis->specializationConstants.localSize[2]);
 
 				if (result != CL_SUCCESS) {
 					return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
 				}
-				result = clFlush(app->configuration.commandQueue[0]);
+				result = clReleaseCommandQueue(commandQueue); // implicit flush
 				if (result != CL_SUCCESS) {
-					return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
+					return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
 				}
-				result = clReleaseEvent(app->configuration.queueEvent);
-				if (result != CL_SUCCESS) {
-					return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
+				if (app->configuration.queueEvent != NULL) {
+					result = clReleaseEvent(app->configuration.queueEvent);
+					if (result != CL_SUCCESS) {
+						return VKFFT_ERROR_FAILED_TO_LAUNCH_KERNEL;
+					}
 				}
 				app->configuration.queueEvent = ev;
 #elif(VKFFT_BACKEND==4)
