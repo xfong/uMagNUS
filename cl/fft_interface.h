@@ -79,7 +79,7 @@ interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue que
     plan->config->platform      = &plan->platform;
     plan->config->context       = &plan->context;
     plan->config->device        = &plan->device;
-    plan->lParams->commandQueue = &plan->commandQueue;
+    //plan->lParams->commandQueue = &plan->commandQueue;
 
     // Default to 3D plan but with all dimensions to be 1
     plan->config->FFTdim  = 3;
@@ -304,6 +304,7 @@ cl_event vkfftGetPlanEvent(interfaceFFTPlan* plan) {
 
 void vkfftSetPlanEvent(interfaceFFTPlan* plan, cl_event ev) {
     plan->app->configuration.queueEvent = ev;
+    plan->lParams->queueEvent = ev;
 }
 
 cl_command_queue vkfftPlanGetCommandQueue(interfaceFFTPlan* plan) {

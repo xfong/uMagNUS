@@ -118,6 +118,9 @@ var (
 	ErrVkFFTFailCreateCommandList                           = errors.New("vkFFT: Failed to create command list")
 	ErrVkFFTFailDestroyCommandList                          = errors.New("vkFFT: Failed to destroy command list")
 	ErrVkFFTFailSubmitBarrier                               = errors.New("vkFFT: Failed to submit barrier")
+	ErrVkFFTFailFlushCommandQueue                           = errors.New("vkFFT: Failed to flush command queue")
+	ErrVkFFTFailWaitForEvent                                = errors.New("vkFFT: Failed to wait for event")
+	ErrVkFFTFailReleaseEvent                                = errors.New("vkFFT: Failed to release event")
 )
 
 var errorMapVkFFT = map[C.VkFFTResult]error{
@@ -212,6 +215,9 @@ var errorMapVkFFT = map[C.VkFFTResult]error{
 	C.VKFFT_ERROR_FAILED_TO_CREATE_COMMAND_LIST:                 ErrVkFFTFailCreateCommandList,
 	C.VKFFT_ERROR_FAILED_TO_DESTROY_COMMAND_LIST:                ErrVkFFTFailDestroyCommandList,
 	C.VKFFT_ERROR_FAILED_TO_SUBMIT_BARRIER:                      ErrVkFFTFailSubmitBarrier,
+	C.VKFFT_ERROR_FAILED_TO_FLUSH_COMMAND_QUEUE:                 ErrVkFFTFailFlushCommandQueue,
+	C.VKFFT_ERROR_FAILED_TO_WAIT_FOR_EVENT:                      ErrVkFFTFailWaitForEvent,
+	C.VKFFT_ERROR_FAILED_TO_RELEASE_EVENT:                       ErrVkFFTFailReleaseEvent,
 }
 
 type VkfftDirection int
