@@ -250,7 +250,7 @@ VkFFTResult vkfftBakeFFTPlan(interfaceFFTPlan* plan) {
         deleteVkFFT(plan->app);
         plan->app = (VkFFTApplication*)calloc(1,sizeof(VkFFTApplication));
     }
-    VkFFTConfiguration tmpConfig = *plan->config;
+    VkFFTConfiguration tmpConfig = *plan->config; // need to ensure cl_event pointer is setup in plan
     res = initializeVkFFT(plan->app, tmpConfig);
 #if(__DEBUG__>0)
     printf("    Done with initialization...\n");
@@ -299,27 +299,32 @@ void vkfftDestroyFFTPlan(interfaceFFTPlan* plan) {
 }
 
 cl_event vkfftGetPlanEvent(interfaceFFTPlan* plan) {
+    return *(plan->app->configuration.queueEvent);
+}
+
+cl_event* vkfftGetPlanEventPtr(interfaceFFTPlan* plan) {
     return plan->app->configuration.queueEvent;
 }
 
-void vkfftSetPlanEvent(interfaceFFTPlan* plan, cl_event ev) {
+void vkfftSetPlanEvent(interfaceFFTPlan* plan, cl_event* ev) {
     plan->app->configuration.queueEvent = ev;
+    plan->config.queueEvent = ev;
 }
-
-cl_command_queue vkfftPlanGetCommandQueue(interfaceFFTPlan* plan) {
+/*
+cl_command_queue vkfftPlanGetCommandQueue(interfaceFFTPlan* plan) { // needed ??
     return plan->commandQueue;
 }
-
+*/
 cl_device_id vkfftPlanGetDevice(interfaceFFTPlan* plan) {
     return plan->device;
 }
-
-cl_int vkfftPlanQueueFinish(interfaceFFTPlan* plan) {
+/*
+cl_int vkfftPlanQueueFinish(interfaceFFTPlan* plan) { // needed ??
     return clFinish(plan->commandQueue);
 }
 
-cl_int vkfftPlanQueueFlush(interfaceFFTPlan* plan) {
+cl_int vkfftPlanQueueFlush(interfaceFFTPlan* plan) { // needed ??
     return clFlush(plan->commandQueue);
 }
-
+*/
 #endif // __FFT_INTERFACE__
