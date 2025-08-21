@@ -288,23 +288,27 @@ func (plan *VkfftPlan) GetQueueEvent() Event {
 	return ev
 }
 
-func (plan *VkfftPlan) SetQueueEvent(e Event) {
-	C.vkfftSetPlanEvent(plan.GetPlanPointer(), e.clEvent)
+// best practice: give a event marker or barrier to plan prior to execution (do not give nil)
+func (plan *VkfftPlan) SetQueueEvent(e *Event) {
+	if e == nil {
+		fatal("error: do not give null pointer to setqueueevent!")
+	}
+	C.vkfftSetPlanEvent(plan.GetPlanPointer(), &e.clEvent)
 }
 
-func (plan *VkfftPlan) GetCommandQueue() *CommandQueue {
-	queue := new(CommandQueue)
-	dev := new(Device)
-	queue.clQueue = C.vkfftPlanGetCommandQueue(plan.GetPlanPointer())
-	dev.id = C.vkfftPlanGetDevice(plan.GetPlanPointer())
-	queue.device = dev
-	return queue
-}
+//func (plan *VkfftPlan) GetCommandQueue() *CommandQueue {
+//	queue := new(CommandQueue)
+//	dev := new(Device)
+//	queue.clQueue = C.vkfftPlanGetCommandQueue(plan.GetPlanPointer())
+//	dev.id = C.vkfftPlanGetDevice(plan.GetPlanPointer())
+//	queue.device = dev
+//	return queue
+//}
 
-func (plan *VkfftPlan) QueueFinish() error {
-	return toError(C.vkfftPlanQueueFinish(plan.GetPlanPointer()))
-}
+//func (plan *VkfftPlan) QueueFinish() error {
+//	return toError(C.vkfftPlanQueueFinish(plan.GetPlanPointer()))
+//}
 
-func (plan *VkfftPlan) QueueFlush() error {
-	return toError(C.vkfftPlanQueueFlush(plan.GetPlanPointer()))
-}
+//func (plan *VkfftPlan) QueueFlush() error {
+//	return toError(C.vkfftPlanQueueFlush(plan.GetPlanPointer()))
+//}
