@@ -31834,9 +31834,17 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 				return resFFT;
 			}
 		}
+#if(VKFFT_BACKEND==3)
+		resFFT = clWaitForEvents(1, app->configuration.queueEvent); // need to synchronize data transfers before host memory is freed
+#endif
 		free(phaseVectors_fp64);
 		free(phaseVectors_fp128);
 		free(phaseVectors_fp128_out);
+#if(VKFFT_BACKEND==3)
+		if (resFFT != CL_SUCCESS) {
+			return VKFFT_ERROR_FAILED_TO_WAIT_FOR_EVENT;
+		}
+#endif
 	}
 	else {
 #endif
@@ -32361,12 +32369,6 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 				deleteVkFFT(&kernelPreparationApplication);
 				return resFFT;
 			}
-			res = clWaitForEvents(1, kernelPreparationApplication->configuration.queueEvent); // needed ??
-			if (res != CL_SUCCESS) {
-				free(phaseVectors);
-				deleteVkFFT(&kernelPreparationApplication);
-				return VKFFT_ERROR_FAILED_TO_SYNCHRONIZE;
-			}
 		}
 		if ((FFTPlan->numAxisUploads[axis_id] == 1) && (!app->configuration.makeForwardPlanOnly)) {
 			launchParams.buffer = &app->bufferBluesteinIFFT[axis_id];
@@ -32376,12 +32378,12 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 				deleteVkFFT(&kernelPreparationApplication);
 				return resFFT;
 			}
-			res = clWaitForEvents(1, kernelPreparationApplication->configuration.queueEvent);
-			if (res != CL_SUCCESS) {
-				free(phaseVectors);
-				deleteVkFFT(&kernelPreparationApplication);
-				return VKFFT_ERROR_FAILED_TO_SYNCHRONIZE;
-			}
+		}
+		res = clWaitForEvents(1, kernelPreparationApplication->configuration.queueEvent);
+		if (res != CL_SUCCESS) {
+			free(phaseVectors);
+			deleteVkFFT(&kernelPreparationApplication);
+			return VKFFT_ERROR_FAILED_TO_SYNCHRONIZE;
 		}
 #elif(VKFFT_BACKEND==4)
 		ze_command_list_desc_t commandListDescription = {};
@@ -32799,12 +32801,6 @@ static inline VkFFTResult VkFFTGenerateRaderFFTKernel(VkFFTApplication* app, VkF
 					deleteVkFFT(&kernelPreparationApplication);
 					return resFFT;
 				}
-				res = clWaitForEvents(1, kernelPreparationApplication.configuration.queueEvent); // needed ??
-				if (res != CL_SUCCESS) {
-					free(axis->specializationConstants.raderContainer[i].raderFFTkernel);
-					deleteVkFFT(&kernelPreparationApplication);
-					return VKFFT_ERROR_FAILED_TO_SYNCHRONIZE;
-				}
 #elif(VKFFT_BACKEND==4)
 				ze_command_list_desc_t commandListDescription = {};
 				commandListDescription.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
@@ -32875,9 +32871,15 @@ static inline VkFFTResult VkFFTGenerateRaderFFTKernel(VkFFTApplication* app, VkF
 
 #if(VKFFT_BACKEND==0)
 				kernelPreparationApplication.configuration.isCompilerInitialized = 0;
-//#elif(VKFFT_BACKEND==3)
+#elif(VKFFT_BACKEND==3)
 //				res = clReleaseCommandQueue(commandQueue);
 //				if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+				res = clWaitForEvents(1, kernelPreparationApplication.configuration.queueEvent);
+				if (res != CL_SUCCESS) {
+					free(axis->specializationConstants.raderContainer[i].raderFFTkernel);
+					deleteVkFFT(&kernelPreparationApplication);
+					return VKFFT_ERROR_FAILED_TO_WAIT_FOR_EVENT;
+				}
 #endif
 #if(VKFFT_BACKEND==0)
 				vkDestroyBuffer(app->configuration.device[0], bufferRaderFFT, 0);
@@ -34002,6 +34004,13 @@ static inline VkFFTResult VkFFTPlanR2CMultiUploadDecomposition(VkFFTApplication*
 					free(tempLUT);
 					tempLUT = 0;
 					return resFFT;
+				}
+				resFFT = clWaitForEvents(1, app->configuration.queueEvent);
+				if (resFFT != VKFFT_SUCCESS) {
+					deleteVkFFT(app);
+					free(tempLUT);
+					tempLUT = 0;
+					return VKFFT_ERROR_FAILED_TO_WAIT_FOR_EVENT;
 				}
 #elif(VKFFT_BACKEND==3)
 				axis->bufferLUT = clCreateBuffer(app->configuration.context[0], CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, axis->bufferLUTSize, tempLUT, &res);
