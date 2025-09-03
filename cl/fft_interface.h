@@ -23,7 +23,7 @@ struct interfaceFFTPlan {
     cl_platform_id        platform;
     cl_device_id          device;
     cl_context            context;
-    cl_command_queue      commandQueue;
+    cl_event              event;
     int                   dataType;
     uint64_t              inputBufferSize;
     uint64_t              outputBufferSize;
@@ -32,8 +32,8 @@ struct interfaceFFTPlan {
 typedef struct interfaceFFTPlan interfaceFFTPlan;
 
 // Interface functions for plan creation
-interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue queue);
-interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx, cl_command_queue queue);
+interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx);
+interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx);
 
 // Interface function for modifying the FFT plan details
 void vkfftSetFFTPlanBufferSizes(interfaceFFTPlan* plan);
@@ -47,7 +47,7 @@ void vkfftDestroyFFTPlan(interfaceFFTPlan* plan);
 
 // Basic function to return a FFT plan.
 // This flow is similar to other FFT libraries such as FFTW, cuFFT, clFFT, rocFFT.
-interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue queue) {
+interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx) {
     interfaceFFTPlan* plan = (interfaceFFTPlan*)calloc(1, sizeof(interfaceFFTPlan));
     // Empty plan
     plan->config  = (VkFFTConfiguration*)calloc(1, sizeof(VkFFTConfiguration));
@@ -72,14 +72,11 @@ interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue que
         return NULL;
     }
 
-    // Set command queue for the plan
-    plan->commandQueue = queue;
-
     // Update internal pointers
     plan->config->platform      = &plan->platform;
     plan->config->context       = &plan->context;
     plan->config->device        = &plan->device;
-    plan->lParams->commandQueue = &plan->commandQueue;
+    plan->config->queueEvent    = &plan->event;
 
     // Default to 3D plan but with all dimensions to be 1
     plan->config->FFTdim  = 3;
@@ -117,8 +114,8 @@ interfaceFFTPlan* vkfftCreateDefaultFFTPlan(cl_context ctx, cl_command_queue que
 
 // A specialized function to return a FFT plan that computes
 // R2C (forward) and C2R (backward) transforms
-interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx, cl_command_queue queue) {
-    interfaceFFTPlan* plan = vkfftCreateDefaultFFTPlan(ctx, queue);
+interfaceFFTPlan* vkfftCreateR2CFFTPlan(cl_context ctx) {
+    interfaceFFTPlan* plan = vkfftCreateDefaultFFTPlan(ctx);
 
     plan->config->performR2C                 = 1;
     plan->config->inverseReturnToInputBuffer = 1;
@@ -306,9 +303,24 @@ cl_event* vkfftGetPlanEventPtr(interfaceFFTPlan* plan) {
     return plan->app->configuration.queueEvent;
 }
 
-void vkfftSetPlanEvent(interfaceFFTPlan* plan, cl_event* ev) {
-    plan->app->configuration.queueEvent = ev;
-    plan->config.queueEvent = ev;
+cl_int vkfftSetPlanEvent(interfaceFFTPlan* plan, cl_event* ev) {
+    cl_int res = CL_SUCCESS;
+    cl_command_queue commandQueue = clCreateCommandQueue(app->configuration.context[0], app->configuration.device[0], 0, &res);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_CREATE_COMMAND_QUEUE;
+    cl_event evt;
+    res = clEnqueueMarkerWithWaitList(commandQueue, 1, ev, &evt);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_CREATE_EVENT;
+    res = clReleaseCommandQueue(commandQueue); // implicit flush
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+    if (plan->event != NULL) {
+        res = clReleaseEvent(plan->event);
+        if (res != CL_SUCCESS) {
+            res = clReleaseEvent(evt);
+            return VKFFT_ERROR_FAILED_TO_RELEASE_EVENT;
+        }
+    }
+    plan->event = evt;
+    return CL_SUCCESS;
 }
 /*
 cl_command_queue vkfftPlanGetCommandQueue(interfaceFFTPlan* plan) { // needed ??

@@ -289,11 +289,11 @@ func (plan *VkfftPlan) GetQueueEvent() Event {
 }
 
 // best practice: give a event marker or barrier to plan prior to execution (do not give nil)
-func (plan *VkfftPlan) SetQueueEvent(e *Event) {
+func (plan *VkfftPlan) SetQueueEvent(e *Event) error {
 	if e == nil {
 		fatal("error: do not give null pointer to setqueueevent!")
 	}
-	C.vkfftSetPlanEvent(plan.GetPlanPointer(), &e.clEvent)
+	return toError(C.vkfftSetPlanEvent(plan.GetPlanPointer(), &e.clEvent))
 }
 
 //func (plan *VkfftPlan) GetCommandQueue() *CommandQueue {
