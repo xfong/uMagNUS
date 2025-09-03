@@ -235,15 +235,15 @@ func (vPlan *VkfftPlan) GetPlanPointer() *C.interfaceFFTPlan {
 	return &vPlan.vkfftPlanStruct
 }
 
-func NewVkFFTPlan(ctx *Context, queue *CommandQueue) *VkfftPlan {
+func NewVkFFTPlan(ctx *Context) *VkfftPlan {
 	var outPlan *C.interfaceFFTPlan
-	outPlan = C.vkfftCreateR2CFFTPlan(ctx.clContext, queue.clQueue)
+	outPlan = C.vkfftCreateR2CFFTPlan(ctx.clContext)
 	return &VkfftPlan{*outPlan}
 }
 
-func NewVkFFTPlanDouble(ctx *Context, queue *CommandQueue) *VkfftPlan {
+func NewVkFFTPlanDouble(ctx *Context) *VkfftPlan {
 	var outPlan *C.interfaceFFTPlan
-	outPlan = C.vkfftCreateR2CFFTPlan(ctx.clContext, queue.clQueue)
+	outPlan = C.vkfftCreateR2CFFTPlan(ctx.clContext)
 	C.vkfftSetFFTPlanDataType(outPlan, 1)
 	return &VkfftPlan{*outPlan}
 }
